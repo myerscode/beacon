@@ -7,6 +7,7 @@ namespace Myerscode\Beacon\Crawler;
 use Myerscode\Beacon\ChromeDriverManager;
 use Symfony\Component\Panther\Client;
 use Throwable;
+use Fiber;
 
 class SpiderCrawler
 {
@@ -113,6 +114,62 @@ class SpiderCrawler
     }
 
     /**
+     * Process discovered links and add eligible ones to the queue.
+     *
+     * @param array<int, array{url: string}>                             $newLinks
+     * @param array{url: string, depth: int, source: string}             $item
+     * @param array<int, array{url: string, depth: int, source: string}> $queue
+     * @param array<string, bool>                                        $queued
+     */
+    private function enqueueLinks(array $newLinks, array $item, array &$queue, array &$queued): void
+    {
+        foreach ($newLinks as $newLink) {
+            $normalized = $this->normalizeUrl($newLink['url']);
+
+            if ($normalized === '') {
+                continue;
+            }
+
+            $isInternal = $this->isInternal($normalized);
+            $linkDepth  = $item['depth'] + 1;
+
+            if (!$isInternal) {
+                $externalResult = new CrawlResult(
+                    $normalized,
+                    false,
+                    null,
+                    [$item['url']],
+                    $linkDepth,
+                );
+                $this->crawlResultCollection->add($externalResult);
+                $this->crawlConfig->notifyCrawled($normalized, $externalResult);
+
+                continue;
+            }
+
+            if (isset($queued[$normalized])) {
+                $existing = $this->crawlResultCollection->get($normalized);
+                if ($existing !== null) {
+                    $this->crawlResultCollection->add($existing->withLinkedFrom($item['url']));
+                }
+
+                continue;
+            }
+
+            if ($linkDepth > $this->crawlConfig->getMaxDepth()) {
+                continue;
+            }
+
+            if (!$this->crawlConfig->isAllowed($normalized)) {
+                continue;
+            }
+
+            $queued[$normalized] = true;
+            $queue[]             = ['url' => $normalized, 'depth' => $linkDepth, 'source' => $item['url']];
+        }
+    }
+
+    /**
      * Extract link hrefs from HTML and resolve them.
      *
      * @return array<int, array{url: string}>
@@ -179,61 +236,54 @@ class SpiderCrawler
     private function processQueue(array &$queue, array &$queued, array $clients): void
     {
         $maxConcurrent = count($clients);
+        /** @var array<int, bool> $clientAvailable */
+        $clientAvailable = array_fill(0, $maxConcurrent, true);
 
-        while ($queue !== []) {
-            // Grab a batch from the queue
-            $batch = array_splice($queue, 0, $maxConcurrent);
+        /** @var array<int, Fiber<null, null, array<int, array{url: string}>, null>> $fibers */
+        $fibers = [];
 
-            foreach ($batch as $index => $item) {
-                $client = $clients[$index] ?? $clients[0];
-                $newLinks = $this->visitPage($client, $item['url'], $item['depth'], $item['source']);
+        /** @var array<int, array{url: string, depth: int, source: string}> $fiberItems */
+        $fiberItems = [];
 
-                // Add newly discovered links to the queue
-                foreach ($newLinks as $newLink) {
-                    $normalized = $this->normalizeUrl($newLink['url']);
-
-                    if ($normalized === '') {
-                        continue;
-                    }
-
-                    $isInternal = $this->isInternal($normalized);
-                    $linkDepth  = $item['depth'] + 1;
-
-                    if (!$isInternal) {
-                        // Record external link but don't crawl it
-                        $externalResult = new CrawlResult(
-                            $normalized,
-                            false,
-                            null,
-                            [$item['url']],
-                            $linkDepth,
-                        );
-                        $this->crawlResultCollection->add($externalResult);
-                        $this->crawlConfig->notifyCrawled($normalized, $externalResult);
-                        continue;
-                    }
-
-                    if (isset($queued[$normalized])) {
-                        // Already seen — just add the source reference
-                        $existing = $this->crawlResultCollection->get($normalized);
-                        if ($existing !== null) {
-                            $this->crawlResultCollection->add($existing->withLinkedFrom($item['url']));
-                        }
-
-                        continue;
-                    }
-
-                    if ($linkDepth > $this->crawlConfig->getMaxDepth()) {
-                        continue;
-                    }
-
-                    if (!$this->crawlConfig->isAllowed($normalized)) {
-                        continue;
-                    }
-
-                    $queued[$normalized] = true;
-                    $queue[] = ['url' => $normalized, 'depth' => $linkDepth, 'source' => $item['url']];
+        while ($queue !== [] || $fibers !== []) {
+            // Fill available client slots with queued items
+            foreach ($clientAvailable as $index => $available) {
+                if (!$available || $queue === []) {
+                    continue;
                 }
+
+                $item   = array_shift($queue);
+                $client = $clients[$index];
+
+                $clientAvailable[$index] = false;
+                $fiberItems[$index]      = $item;
+
+                $fibers[$index] = new Fiber(function () use ($client, $item): array {
+                    return $this->visitPageAsync($client, $item['url'], $item['depth'], $item['source']);
+                });
+
+                $fibers[$index]->start();
+            }
+
+            // Round-robin through active Fibers
+            foreach ($fibers as $index => $fiber) {
+                if ($fiber->isTerminated()) {
+                    /** @var array<int, array{url: string}> $newLinks */
+                    $newLinks = $fiber->getReturn();
+                    $item     = $fiberItems[$index];
+
+                    $this->enqueueLinks($newLinks, $item, $queue, $queued);
+
+                    $clientAvailable[$index] = true;
+                    unset($fibers[$index], $fiberItems[$index]);
+                } elseif ($fiber->isSuspended()) {
+                    $fiber->resume();
+                }
+            }
+
+            // Small sleep to avoid busy-waiting when all Fibers are suspended
+            if ($fibers !== []) {
+                usleep(50000);
             }
         }
     }
@@ -281,20 +331,41 @@ class SpiderCrawler
     }
 
     /**
+     * Visit a page asynchronously, yielding while waiting for it to load.
+     *
      * @return array<int, array{url: string}>
      */
-    private function visitPage(Client $client, string $url, int $depth, string $source): array
+    private function visitPageAsync(Client $client, string $url, int $depth, string $source): array
     {
         $statusCode = null;
         $links      = [];
 
         try {
             $client->request('GET', $url);
-            $this->waitForPageReady($client);
-            $statusCode = $this->getStatusCode($client);
 
-            $html  = $client->getPageSource();
-            $links = $this->extractLinksFromHtml($html, $url);
+            // Yield while waiting for the page to be ready
+            $deadline = time() + $this->crawlConfig->getTimeout();
+
+            while (time() < $deadline) {
+                /** @var string $state */
+                $state = $client->executeScript('return document.readyState');
+
+                if ($state === 'complete') {
+                    /** @var int $bodyLength */
+                    $bodyLength = $client->executeScript('return document.body.innerHTML.length');
+
+                    if ($bodyLength > 0) {
+                        break;
+                    }
+                }
+
+                // Yield control back to the main loop so other Fibers can progress
+                Fiber::suspend();
+            }
+
+            $statusCode = $this->getStatusCode($client);
+            $html       = $client->getPageSource();
+            $links      = $this->extractLinksFromHtml($html, $url);
         } catch (Throwable) {
             // Page failed to load — record with null status
         }
@@ -318,24 +389,8 @@ class SpiderCrawler
         return $links;
     }
 
-    private function waitForPageReady(Client $client): void
-    {
-        $deadline = time() + $this->crawlConfig->getTimeout();
+    /**
+     * @return array<int, array{url: string}>
+     */
 
-        while (time() < $deadline) {
-            /** @var string $state */
-            $state = $client->executeScript('return document.readyState');
-
-            if ($state === 'complete') {
-                /** @var int $bodyLength */
-                $bodyLength = $client->executeScript('return document.body.innerHTML.length');
-
-                if ($bodyLength > 0) {
-                    return;
-                }
-            }
-
-            usleep(200000);
-        }
-    }
 }
