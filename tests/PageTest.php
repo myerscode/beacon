@@ -291,6 +291,18 @@ final class PageTest extends TestCase
 
         $this->assertSame(200, $page->statusCode());
     }
+
+    public function testPdfReturnsSelf(): void
+    {
+        $client = $this->createMock(ClientInterface::class);
+        $client->expects($this->once())
+            ->method('savePdf')
+            ->with('/tmp/test.pdf');
+
+        $page = new Page($client, 'https://example.com');
+
+        $this->assertSame($page, $page->pdf('/tmp/test.pdf'));
+    }
     private function createClientStub(): ClientInterface
     {
         return $this->createStub(ClientInterface::class);

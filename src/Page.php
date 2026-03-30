@@ -195,6 +195,16 @@ class Page
     }
 
     /**
+     * Save the page as a PDF file.
+     */
+    public function pdf(string $path): self
+    {
+        $this->client->savePdf($path);
+
+        return $this;
+    }
+
+    /**
      * Get the fully rendered HTML source of the page.
      */
     public function source(): string

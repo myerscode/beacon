@@ -55,6 +55,20 @@ class ClientAdapter implements ClientInterface
         $this->client->quit();
     }
 
+    public function savePdf(string $path): void
+    {
+        /** @var array{data: string} $result */
+        $result  = $this->client->execute('sendCommand', [
+            'cmd'    => 'Page.printToPDF',
+            'params' => [
+                'printBackground'    => true,
+                'preferCSSPageSize'  => true,
+            ],
+        ]);
+
+        file_put_contents($path, base64_decode($result['data']));
+    }
+
     public function request(string $method, string $uri): void
     {
         $this->client->request($method, $uri);
