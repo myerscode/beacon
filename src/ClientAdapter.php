@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Myerscode\Beacon;
 
 use Symfony\Component\Panther\Client;
+use Throwable;
 
 /**
  * @internal
@@ -28,6 +29,20 @@ class ClientAdapter implements ClientInterface
     public function getPageSource(): string
     {
         return $this->client->getPageSource();
+    }
+
+    public function getStatusCode(): int
+    {
+        try {
+            /** @var int $code */
+            $code = $this->client->executeScript(
+                'return window.performance.getEntriesByType("navigation")[0]?.responseStatus || 200',
+            );
+
+            return (int) $code;
+        } catch (Throwable) {
+            return 200;
+        }
     }
 
     public function getTitle(): string

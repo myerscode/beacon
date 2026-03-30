@@ -281,6 +281,16 @@ final class PageTest extends TestCase
 
         $this->assertSame([], $page->meta());
     }
+
+    public function testStatusCodeReturnsCode(): void
+    {
+        $client = $this->createClientStub();
+        $client->method('getStatusCode')->willReturn(200);
+
+        $page = new Page($client, 'https://example.com');
+
+        $this->assertSame(200, $page->statusCode());
+    }
     private function createClientStub(): ClientInterface
     {
         return $this->createStub(ClientInterface::class);

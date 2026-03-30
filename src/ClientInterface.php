@@ -12,6 +12,8 @@ interface ClientInterface
 
     public function getPageSource(): string;
 
+    public function getStatusCode(): int;
+
     public function getTitle(): string;
 
     public function quit(): void;

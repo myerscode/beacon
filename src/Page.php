@@ -203,6 +203,14 @@ class Page
     }
 
     /**
+     * Get the HTTP status code of the page.
+     */
+    public function statusCode(): int
+    {
+        return $this->client->getStatusCode();
+    }
+
+    /**
      * Get the text content of an element matching the given CSS selector.
      */
     public function text(string $selector = 'body'): string
