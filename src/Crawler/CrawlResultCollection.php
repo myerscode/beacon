@@ -1,0 +1,118 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Myerscode\Beacon\Crawler;
+
+use ArrayIterator;
+use Countable;
+use IteratorAggregate;
+
+/**
+ * @implements IteratorAggregate<string, CrawlResult>
+ */
+class CrawlResultCollection implements Countable, IteratorAggregate
+{
+    /**
+     * @var array<string, CrawlResult>
+     */
+    private array $results = [];
+
+    public function add(CrawlResult $crawlResult): void
+    {
+        $url = $crawlResult->url;
+
+        if (isset($this->results[$url])) {
+            $existing = $this->results[$url];
+
+            // Merge linkedFrom sources
+            $merged = array_unique([...$existing->linkedFrom, ...$crawlResult->linkedFrom]);
+
+            $this->results[$url] = new CrawlResult(
+                $url,
+                $crawlResult->internal,
+                $crawlResult->statusCode ?? $existing->statusCode,
+                $merged,
+                min($existing->depth, $crawlResult->depth),
+            );
+        } else {
+            $this->results[$url] = $crawlResult;
+        }
+    }
+
+    public function has(string $url): bool
+    {
+        return isset($this->results[$url]);
+    }
+
+    public function get(string $url): ?CrawlResult
+    {
+        return $this->results[$url] ?? null;
+    }
+
+    /**
+     * Get all results.
+     *
+     * @return array<string, CrawlResult>
+     */
+    public function all(): array
+    {
+        return $this->results;
+    }
+
+    /**
+     * Get only internal results.
+     *
+     * @return array<string, CrawlResult>
+     */
+    public function internal(): array
+    {
+        return array_filter($this->results, fn (CrawlResult $crawlResult): bool => $crawlResult->internal);
+    }
+
+    /**
+     * Get only external results.
+     *
+     * @return array<string, CrawlResult>
+     */
+    public function external(): array
+    {
+        return array_filter($this->results, fn (CrawlResult $crawlResult): bool => !$crawlResult->internal);
+    }
+
+    /**
+     * Get results with a specific status code.
+     *
+     * @return array<string, CrawlResult>
+     */
+    public function withStatus(int $statusCode): array
+    {
+        return array_filter($this->results, fn (CrawlResult $crawlResult): bool => $crawlResult->statusCode === $statusCode);
+    }
+
+    /**
+     * Get results with broken status codes (4xx, 5xx).
+     *
+     * @return array<string, CrawlResult>
+     */
+    public function broken(): array
+    {
+        return array_filter(
+            $this->results,
+            fn (CrawlResult $crawlResult): bool => $crawlResult->statusCode !== null && $crawlResult->statusCode >= 400,
+        );
+    }
+
+    public function count(): int
+    {
+        return count($this->results);
+    }
+
+    /**
+     * @return ArrayIterator<string, CrawlResult>
+     */
+    public function getIterator(): ArrayIterator
+    {
+        return new ArrayIterator($this->results);
+    }
+}
