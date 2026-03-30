@@ -56,24 +56,19 @@ class ClientAdapter implements ClientInterface
     {
         $this->client->waitFor('body', $timeout);
 
-        // Wait for document.readyState to be 'complete' and body to have content
         $deadline = time() + $timeout;
 
         while (time() < $deadline) {
-            /** @var string $state */
-            $state = $this->client->executeScript('return document.readyState');
+            /** @var array{ready: bool, hasContent: bool} $pageState */
+            $pageState = $this->client->executeScript(
+                'return { ready: document.readyState === "complete", hasContent: document.body.innerHTML.length > 0 }',
+            );
 
-            if ($state === 'complete') {
-                // Check body has actual content (not just an empty shell)
-                /** @var int $bodyLength */
-                $bodyLength = $this->client->executeScript('return document.body.innerHTML.length');
-
-                if ($bodyLength > 0) {
-                    return;
-                }
+            if ($pageState['ready'] && $pageState['hasContent']) {
+                return;
             }
 
-            usleep(200000);
+            // Single executeScript call per iteration provides natural pacing (~10-50ms round-trip)
         }
     }
 }

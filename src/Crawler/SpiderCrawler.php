@@ -280,11 +280,6 @@ class SpiderCrawler
                     $fiber->resume();
                 }
             }
-
-            // Small sleep to avoid busy-waiting when all Fibers are suspended
-            if ($fibers !== []) {
-                usleep(50000);
-            }
         }
     }
 
@@ -347,16 +342,13 @@ class SpiderCrawler
             $deadline = time() + $this->crawlConfig->getTimeout();
 
             while (time() < $deadline) {
-                /** @var string $state */
-                $state = $client->executeScript('return document.readyState');
+                /** @var array{ready: bool, hasContent: bool} $pageState */
+                $pageState = $client->executeScript(
+                    'return { ready: document.readyState === "complete", hasContent: document.body.innerHTML.length > 0 }',
+                );
 
-                if ($state === 'complete') {
-                    /** @var int $bodyLength */
-                    $bodyLength = $client->executeScript('return document.body.innerHTML.length');
-
-                    if ($bodyLength > 0) {
-                        break;
-                    }
+                if ($pageState['ready'] && $pageState['hasContent']) {
+                    break;
                 }
 
                 // Yield control back to the main loop so other Fibers can progress
