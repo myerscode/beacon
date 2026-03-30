@@ -118,27 +118,26 @@ class ChromeDriverManager
 
     private function waitUntilReady(): void
     {
-        $url     = sprintf('http://%s:%d/status', $this->host, $this->port);
-        $timeout = 10;
-        $start   = time();
+        $timeout  = 10;
+        $deadline = time() + $timeout;
 
-        while (time() - $start < $timeout) {
+        while (time() < $deadline) {
             if ($this->process instanceof Process && !$this->process->isRunning()) {
                 throw new RuntimeException('ChromeDriver process died: ' . $this->process->getErrorOutput());
             }
 
-            try {
-                $context = stream_context_create(['http' => ['timeout' => 1]]);
-                $response = @file_get_contents($url, false, $context);
+            $socket = @stream_socket_client(
+                sprintf('tcp://%s:%d', $this->host, $this->port),
+                $errno,
+                $errstr,
+                timeout: max(1, $deadline - time()),
+            );
 
-                if ($response !== false) {
-                    return;
-                }
-            } catch (Throwable) {
-                // Not ready yet
+            if ($socket !== false) {
+                fclose($socket);
+
+                return;
             }
-
-            usleep(100000);
         }
 
         throw new RuntimeException('ChromeDriver did not start within 10 seconds.');
