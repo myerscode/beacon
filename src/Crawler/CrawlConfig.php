@@ -15,8 +15,11 @@ class CrawlConfig
 
     private int $maxConcurrent = 5;
     private int $maxDepth = 5;
+    private int $maxRetries = 0;
 
     private ?Closure $onCrawled = null;
+
+    private int $requestDelay = 0;
 
     private ?Closure $shouldCrawl = null;
 
@@ -48,6 +51,16 @@ class CrawlConfig
     public function getMaxDepth(): int
     {
         return $this->maxDepth;
+    }
+
+    public function getMaxRetries(): int
+    {
+        return $this->maxRetries;
+    }
+
+    public function getRequestDelay(): int
+    {
+        return $this->requestDelay;
     }
 
     public function getTimeout(): int
@@ -88,6 +101,16 @@ class CrawlConfig
     }
 
     /**
+     * Set the number of retries for failed page loads.
+     */
+    public function maxRetries(int $retries): self
+    {
+        $this->maxRetries = $retries;
+
+        return $this;
+    }
+
+    /**
      * Fire the onCrawled callback if set.
      */
     public function notifyCrawled(string $url, CrawlResult $crawlResult): void
@@ -105,6 +128,17 @@ class CrawlConfig
     public function onCrawled(Closure $callback): self
     {
         $this->onCrawled = $callback;
+
+        return $this;
+    }
+
+    /**
+     * Set a delay in milliseconds between each request.
+     * Helps avoid overwhelming the target server.
+     */
+    public function requestDelay(int $milliseconds): self
+    {
+        $this->requestDelay = $milliseconds;
 
         return $this;
     }

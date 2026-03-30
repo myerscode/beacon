@@ -104,6 +104,52 @@ class Page
     }
 
     /**
+     * Get Lighthouse category scores. No args = all categories.
+     *
+     * @return array<string, int|null>
+     */
+    public function lighthouse(Category ...$categories): array
+    {
+        return $this->getLighthouseResult()->scores(...$categories);
+    }
+
+    /**
+     * Get the full LighthouseResult object for advanced usage.
+     */
+    public function lighthouseResult(): LighthouseResult
+    {
+        return $this->getLighthouseResult();
+    }
+
+    /**
+     * Get all links found on the page.
+     *
+     * @return string[]
+     */
+    public function links(): array
+    {
+        $html = $this->source();
+
+        if (!preg_match_all('/<a\s[^>]*href=["\']([^"\']*)["\'][^>]*>/i', $html, $matches)) {
+            return [];
+        }
+
+        $links = [];
+
+        foreach ($matches[1] as $href) {
+            $href = trim($href);
+
+            if ($href === '' || str_starts_with($href, '#') || str_starts_with($href, 'javascript:')) {
+                continue;
+            }
+
+            $links[] = $href;
+        }
+
+        return array_values(array_unique($links));
+    }
+
+    /**
      * Get all meta tags from the page as a keyed array.
      * Standard meta tags use the name attribute as key.
      * OpenGraph/Twitter tags use the property/name attribute as key.
@@ -139,49 +185,13 @@ class Page
     }
 
     /**
-     * Get all links found on the page.
-     *
-     * @return string[]
+     * Save the page as a PDF file.
      */
-    public function links(): array
+    public function pdf(string $path): self
     {
-        $html = $this->source();
+        $this->client->savePdf($path);
 
-        if (!preg_match_all('/<a\s[^>]*href=["\']([^"\']*)["\'][^>]*>/i', $html, $matches)) {
-            return [];
-        }
-
-        $links = [];
-
-        foreach ($matches[1] as $href) {
-            $href = trim($href);
-
-            if ($href === '' || str_starts_with($href, '#') || str_starts_with($href, 'javascript:')) {
-                continue;
-            }
-
-            $links[] = $href;
-        }
-
-        return array_values(array_unique($links));
-    }
-
-    /**
-     * Get Lighthouse category scores. No args = all categories.
-     *
-     * @return array<string, int|null>
-     */
-    public function lighthouse(Category ...$categories): array
-    {
-        return $this->getLighthouseResult()->scores(...$categories);
-    }
-
-    /**
-     * Get the full LighthouseResult object for advanced usage.
-     */
-    public function lighthouseResult(): LighthouseResult
-    {
-        return $this->getLighthouseResult();
+        return $this;
     }
 
     /**
@@ -190,16 +200,6 @@ class Page
     public function screenshot(string $path): self
     {
         $this->client->takeScreenshot($path);
-
-        return $this;
-    }
-
-    /**
-     * Save the page as a PDF file.
-     */
-    public function pdf(string $path): self
-    {
-        $this->client->savePdf($path);
 
         return $this;
     }

@@ -348,32 +348,54 @@ class Crawler
     {
         $statusCode = null;
         $links      = [];
+        $attempts   = 0;
+        $maxAttempts = $this->crawlConfig->getMaxRetries() + 1;
 
-        try {
-            $client->request('GET', $url);
+        while ($attempts < $maxAttempts) {
+            $attempts++;
 
-            // Yield while waiting for the page to be ready
-            $deadline = time() + $this->crawlConfig->getTimeout();
+            // Apply request delay if configured
+            $delay = $this->crawlConfig->getRequestDelay();
 
-            while (time() < $deadline) {
-                /** @var array{ready: bool, hasContent: bool} $pageState */
-                $pageState = $client->executeScript(
-                    'return { ready: document.readyState === "complete", hasContent: document.body.innerHTML.length > 0 }',
-                );
+            if ($delay > 0) {
+                Fiber::suspend();
+                usleep($delay * 1000);
+            }
 
-                if ($pageState['ready'] && $pageState['hasContent']) {
+            try {
+                $client->request('GET', $url);
+
+                $deadline = time() + $this->crawlConfig->getTimeout();
+
+                while (time() < $deadline) {
+                    /** @var array{ready: bool, hasContent: bool} $pageState */
+                    $pageState = $client->executeScript(
+                        'return { ready: document.readyState === "complete", hasContent: document.body.innerHTML.length > 0 }',
+                    );
+
+                    if ($pageState['ready'] && $pageState['hasContent']) {
+                        break;
+                    }
+
+                    if (time() >= $deadline) {
+                        break;
+                    }
+
+                    Fiber::suspend();
+                }
+
+                $statusCode = $this->getStatusCode($client);
+                $html       = $client->getPageSource();
+                $links      = $this->extractLinksFromHtml($html, $url);
+
+                break;
+            } catch (Throwable) {
+                if ($attempts >= $maxAttempts) {
                     break;
                 }
 
-                // Yield control back to the main loop so other Fibers can progress
                 Fiber::suspend();
             }
-
-            $statusCode = $this->getStatusCode($client);
-            $html       = $client->getPageSource();
-            $links      = $this->extractLinksFromHtml($html, $url);
-        } catch (Throwable) {
-            // Page failed to load — record with null status
         }
 
         $linkedFrom = $source !== '' ? [$source] : [];

@@ -129,16 +129,11 @@ final class CrawlResultCollectionTest extends TestCase
         $this->assertContains('https://example.com/about', $urls);
     }
 
-    public function testWithStatus(): void
+    public function testToArrayEmptyCollection(): void
     {
         $crawlResultCollection = new CrawlResultCollection();
 
-        $crawlResultCollection->add(new CrawlResult('https://example.com', true, 200, [], 0));
-        $crawlResultCollection->add(new CrawlResult('https://example.com/missing', true, 404, [], 1));
-        $crawlResultCollection->add(new CrawlResult('https://example.com/error', true, 500, [], 1));
-
-        $this->assertCount(1, $crawlResultCollection->withStatus(200));
-        $this->assertCount(1, $crawlResultCollection->withStatus(404));
+        $this->assertSame([], $crawlResultCollection->toArray());
     }
 
     public function testToArrayReturnsPlainArray(): void
@@ -160,6 +155,13 @@ final class CrawlResultCollectionTest extends TestCase
         $this->assertSame(['https://example.com'], $array[1]['linkedFrom']);
     }
 
+    public function testToJsonEmptyCollection(): void
+    {
+        $crawlResultCollection = new CrawlResultCollection();
+
+        $this->assertSame('[]', $crawlResultCollection->toJson());
+    }
+
     public function testToJsonReturnsValidJson(): void
     {
         $crawlResultCollection = new CrawlResultCollection();
@@ -174,17 +176,15 @@ final class CrawlResultCollectionTest extends TestCase
         $this->assertSame('https://example.com', $decoded[0]['url']);
     }
 
-    public function testToArrayEmptyCollection(): void
+    public function testWithStatus(): void
     {
         $crawlResultCollection = new CrawlResultCollection();
 
-        $this->assertSame([], $crawlResultCollection->toArray());
-    }
+        $crawlResultCollection->add(new CrawlResult('https://example.com', true, 200, [], 0));
+        $crawlResultCollection->add(new CrawlResult('https://example.com/missing', true, 404, [], 1));
+        $crawlResultCollection->add(new CrawlResult('https://example.com/error', true, 500, [], 1));
 
-    public function testToJsonEmptyCollection(): void
-    {
-        $crawlResultCollection = new CrawlResultCollection();
-
-        $this->assertSame('[]', $crawlResultCollection->toJson());
+        $this->assertCount(1, $crawlResultCollection->withStatus(200));
+        $this->assertCount(1, $crawlResultCollection->withStatus(404));
     }
 }

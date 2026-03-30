@@ -16,14 +16,14 @@ interface ClientInterface
 
     public function getTitle(): string;
 
+    public function quit(): void;
+
+    public function request(string $method, string $uri): void;
+
     /**
      * Save the page as a PDF file.
      */
     public function savePdf(string $path): void;
-
-    public function quit(): void;
-
-    public function request(string $method, string $uri): void;
 
     public function takeScreenshot(string $path): void;
 

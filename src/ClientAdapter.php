@@ -55,6 +55,11 @@ class ClientAdapter implements ClientInterface
         $this->client->quit();
     }
 
+    public function request(string $method, string $uri): void
+    {
+        $this->client->request($method, $uri);
+    }
+
     public function savePdf(string $path): void
     {
         /** @var array{data: string} $result */
@@ -67,11 +72,6 @@ class ClientAdapter implements ClientInterface
         ]);
 
         file_put_contents($path, base64_decode($result['data']));
-    }
-
-    public function request(string $method, string $uri): void
-    {
-        $this->client->request($method, $uri);
     }
 
     public function takeScreenshot(string $path): void

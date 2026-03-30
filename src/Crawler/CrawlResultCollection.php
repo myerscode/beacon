@@ -107,16 +107,6 @@ class CrawlResultCollection implements Countable, IteratorAggregate
     }
 
     /**
-     * Get results with a specific status code.
-     *
-     * @return array<string, CrawlResult>
-     */
-    public function withStatus(int $statusCode): array
-    {
-        return array_filter($this->results, fn (CrawlResult $crawlResult): bool => $crawlResult->statusCode === $statusCode);
-    }
-
-    /**
      * Convert all results to a plain array.
      *
      * @return array<int, array{url: string, internal: bool, statusCode: int|null, linkedFrom: string[], depth: int}>
@@ -141,5 +131,15 @@ class CrawlResultCollection implements Countable, IteratorAggregate
     public function toJson(int $flags = JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES): string
     {
         return json_encode($this->toArray(), $flags | JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * Get results with a specific status code.
+     *
+     * @return array<string, CrawlResult>
+     */
+    public function withStatus(int $statusCode): array
+    {
+        return array_filter($this->results, fn (CrawlResult $crawlResult): bool => $crawlResult->statusCode === $statusCode);
     }
 }

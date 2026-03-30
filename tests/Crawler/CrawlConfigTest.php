@@ -17,6 +17,8 @@ final class CrawlConfigTest extends TestCase
         $this->assertSame(5, $crawlConfig->getMaxDepth());
         $this->assertSame(5, $crawlConfig->getMaxConcurrent());
         $this->assertSame(30, $crawlConfig->getTimeout());
+        $this->assertSame(0, $crawlConfig->getMaxRetries());
+        $this->assertSame(0, $crawlConfig->getRequestDelay());
         $this->assertSame([], $crawlConfig->getExcludePatterns());
     }
 
@@ -41,6 +43,22 @@ final class CrawlConfigTest extends TestCase
         $this->assertSame(2, $crawlConfig->getMaxConcurrent());
         $this->assertSame(15, $crawlConfig->getTimeout());
         $this->assertSame(['/admin'], $crawlConfig->getExcludePatterns());
+    }
+
+    public function testFluentChainingWithNewOptions(): void
+    {
+        $crawlConfig = (new CrawlConfig())
+            ->maxDepth(3)
+            ->maxConcurrent(2)
+            ->maxRetries(2)
+            ->requestDelay(200)
+            ->timeout(15);
+
+        $this->assertSame(3, $crawlConfig->getMaxDepth());
+        $this->assertSame(2, $crawlConfig->getMaxConcurrent());
+        $this->assertSame(2, $crawlConfig->getMaxRetries());
+        $this->assertSame(200, $crawlConfig->getRequestDelay());
+        $this->assertSame(15, $crawlConfig->getTimeout());
     }
 
     public function testIsAllowedBlocksExcludedPatterns(): void
@@ -92,6 +110,13 @@ final class CrawlConfigTest extends TestCase
         $this->assertSame(10, $crawlConfig->getMaxDepth());
     }
 
+    public function testMaxRetries(): void
+    {
+        $crawlConfig = (new CrawlConfig())->maxRetries(3);
+
+        $this->assertSame(3, $crawlConfig->getMaxRetries());
+    }
+
     public function testNotifyCrawledDoesNothingWithoutCallback(): void
     {
         $crawlConfig = new CrawlConfig();
@@ -115,6 +140,13 @@ final class CrawlConfigTest extends TestCase
         $crawlConfig->notifyCrawled('https://example.com', $crawlResult);
 
         $this->assertSame(['https://example.com'], $called);
+    }
+
+    public function testRequestDelay(): void
+    {
+        $crawlConfig = (new CrawlConfig())->requestDelay(500);
+
+        $this->assertSame(500, $crawlConfig->getRequestDelay());
     }
 
     public function testTimeout(): void

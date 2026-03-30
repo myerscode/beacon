@@ -119,6 +119,102 @@ final class PageTest extends TestCase
         $this->assertTrue($page->has('.exists'));
     }
 
+    public function testLinksDeduplicates(): void
+    {
+        $client = $this->createClientStub();
+        $client->method('getPageSource')->willReturn(
+            '<html><body><a href="/about">About</a><a href="/about">About Again</a></body></html>',
+        );
+
+        $page = new Page($client, 'https://example.com');
+
+        $this->assertSame(['/about'], $page->links());
+    }
+
+    public function testLinksReturnsAllLinks(): void
+    {
+        $client = $this->createClientStub();
+        $client->method('getPageSource')->willReturn(
+            '<html><body><a href="/about">About</a><a href="/contact">Contact</a></body></html>',
+        );
+
+        $page = new Page($client, 'https://example.com');
+
+        $this->assertSame(['/about', '/contact'], $page->links());
+    }
+
+    public function testLinksReturnsEmptyForNoLinks(): void
+    {
+        $client = $this->createClientStub();
+        $client->method('getPageSource')->willReturn('<html><body><p>No links</p></body></html>');
+
+        $page = new Page($client, 'https://example.com');
+
+        $this->assertSame([], $page->links());
+    }
+
+    public function testLinksSkipsFragmentsAndJavascript(): void
+    {
+        $client = $this->createClientStub();
+        $client->method('getPageSource')->willReturn(
+            '<html><body><a href="#top">Top</a><a href="javascript:void(0)">JS</a><a href="/real">Real</a></body></html>',
+        );
+
+        $page = new Page($client, 'https://example.com');
+
+        $this->assertSame(['/real'], $page->links());
+    }
+
+    public function testMetaReturnsEmptyForNoMeta(): void
+    {
+        $client = $this->createClientStub();
+        $client->method('getPageSource')->willReturn('<html><head></head><body></body></html>');
+
+        $page = new Page($client, 'https://example.com');
+
+        $this->assertSame([], $page->meta());
+    }
+
+    public function testMetaReturnsMetaTags(): void
+    {
+        $client = $this->createClientStub();
+        $client->method('getPageSource')->willReturn(
+            '<html><head><meta name="description" content="A test page"><meta name="keywords" content="test,page"></head><body></body></html>',
+        );
+
+        $page = new Page($client, 'https://example.com');
+        $meta = $page->meta();
+
+        $this->assertSame('A test page', $meta['description']);
+        $this->assertSame('test,page', $meta['keywords']);
+    }
+
+    public function testMetaReturnsOpenGraphTags(): void
+    {
+        $client = $this->createClientStub();
+        $client->method('getPageSource')->willReturn(
+            '<html><head><meta property="og:title" content="OG Title"><meta property="og:type" content="website"></head><body></body></html>',
+        );
+
+        $page = new Page($client, 'https://example.com');
+        $meta = $page->meta();
+
+        $this->assertSame('OG Title', $meta['og:title']);
+        $this->assertSame('website', $meta['og:type']);
+    }
+
+    public function testPdfReturnsSelf(): void
+    {
+        $client = $this->createMock(ClientInterface::class);
+        $client->expects($this->once())
+            ->method('savePdf')
+            ->with('/tmp/test.pdf');
+
+        $page = new Page($client, 'https://example.com');
+
+        $this->assertSame($page, $page->pdf('/tmp/test.pdf'));
+    }
+
     public function testScreenshotReturnsSelf(): void
     {
         $client = $this->createMock(ClientInterface::class);
@@ -139,6 +235,16 @@ final class PageTest extends TestCase
         $page = new Page($client, 'https://example.com');
 
         $this->assertSame('<html><body>Hello</body></html>', $page->source());
+    }
+
+    public function testStatusCodeReturnsCode(): void
+    {
+        $client = $this->createClientStub();
+        $client->method('getStatusCode')->willReturn(200);
+
+        $page = new Page($client, 'https://example.com');
+
+        $this->assertSame(200, $page->statusCode());
     }
 
     public function testTextDefaultsToBody(): void
@@ -196,112 +302,6 @@ final class PageTest extends TestCase
         $page = new Page($client, 'https://example.com');
 
         $this->assertSame('https://example.com', $page->url());
-    }
-
-    public function testLinksReturnsAllLinks(): void
-    {
-        $client = $this->createClientStub();
-        $client->method('getPageSource')->willReturn(
-            '<html><body><a href="/about">About</a><a href="/contact">Contact</a></body></html>',
-        );
-
-        $page = new Page($client, 'https://example.com');
-
-        $this->assertSame(['/about', '/contact'], $page->links());
-    }
-
-    public function testLinksDeduplicates(): void
-    {
-        $client = $this->createClientStub();
-        $client->method('getPageSource')->willReturn(
-            '<html><body><a href="/about">About</a><a href="/about">About Again</a></body></html>',
-        );
-
-        $page = new Page($client, 'https://example.com');
-
-        $this->assertSame(['/about'], $page->links());
-    }
-
-    public function testLinksSkipsFragmentsAndJavascript(): void
-    {
-        $client = $this->createClientStub();
-        $client->method('getPageSource')->willReturn(
-            '<html><body><a href="#top">Top</a><a href="javascript:void(0)">JS</a><a href="/real">Real</a></body></html>',
-        );
-
-        $page = new Page($client, 'https://example.com');
-
-        $this->assertSame(['/real'], $page->links());
-    }
-
-    public function testLinksReturnsEmptyForNoLinks(): void
-    {
-        $client = $this->createClientStub();
-        $client->method('getPageSource')->willReturn('<html><body><p>No links</p></body></html>');
-
-        $page = new Page($client, 'https://example.com');
-
-        $this->assertSame([], $page->links());
-    }
-
-    public function testMetaReturnsMetaTags(): void
-    {
-        $client = $this->createClientStub();
-        $client->method('getPageSource')->willReturn(
-            '<html><head><meta name="description" content="A test page"><meta name="keywords" content="test,page"></head><body></body></html>',
-        );
-
-        $page = new Page($client, 'https://example.com');
-        $meta = $page->meta();
-
-        $this->assertSame('A test page', $meta['description']);
-        $this->assertSame('test,page', $meta['keywords']);
-    }
-
-    public function testMetaReturnsOpenGraphTags(): void
-    {
-        $client = $this->createClientStub();
-        $client->method('getPageSource')->willReturn(
-            '<html><head><meta property="og:title" content="OG Title"><meta property="og:type" content="website"></head><body></body></html>',
-        );
-
-        $page = new Page($client, 'https://example.com');
-        $meta = $page->meta();
-
-        $this->assertSame('OG Title', $meta['og:title']);
-        $this->assertSame('website', $meta['og:type']);
-    }
-
-    public function testMetaReturnsEmptyForNoMeta(): void
-    {
-        $client = $this->createClientStub();
-        $client->method('getPageSource')->willReturn('<html><head></head><body></body></html>');
-
-        $page = new Page($client, 'https://example.com');
-
-        $this->assertSame([], $page->meta());
-    }
-
-    public function testStatusCodeReturnsCode(): void
-    {
-        $client = $this->createClientStub();
-        $client->method('getStatusCode')->willReturn(200);
-
-        $page = new Page($client, 'https://example.com');
-
-        $this->assertSame(200, $page->statusCode());
-    }
-
-    public function testPdfReturnsSelf(): void
-    {
-        $client = $this->createMock(ClientInterface::class);
-        $client->expects($this->once())
-            ->method('savePdf')
-            ->with('/tmp/test.pdf');
-
-        $page = new Page($client, 'https://example.com');
-
-        $this->assertSame($page, $page->pdf('/tmp/test.pdf'));
     }
     private function createClientStub(): ClientInterface
     {
