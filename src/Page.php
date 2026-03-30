@@ -6,7 +6,7 @@ namespace Myerscode\Beacon;
 
 use Myerscode\Beacon\Crawler\CrawlConfig;
 use Myerscode\Beacon\Crawler\CrawlResultCollection;
-use Myerscode\Beacon\Crawler\SpiderCrawler;
+use Myerscode\Beacon\Crawler\Crawler;
 use Myerscode\Beacon\Lighthouse\Audit;
 use Myerscode\Beacon\Lighthouse\Category;
 use Myerscode\Beacon\Lighthouse\LighthouseResult;
@@ -70,10 +70,10 @@ class Page
             $driver    = $ownDriver;
         }
 
-        $spiderCrawler = new SpiderCrawler($crawlConfig, $driver);
+        $crawler = new Crawler($crawlConfig, $driver);
 
         try {
-            return $spiderCrawler->crawl($this->url, $this->source());
+            return $crawler->crawl($this->url, $this->source());
         } finally {
             $ownDriver?->quit();
         }
