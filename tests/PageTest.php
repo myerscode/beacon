@@ -243,6 +243,44 @@ final class PageTest extends TestCase
 
         $this->assertSame([], $page->links());
     }
+
+    public function testMetaReturnsMetaTags(): void
+    {
+        $client = $this->createClientStub();
+        $client->method('getPageSource')->willReturn(
+            '<html><head><meta name="description" content="A test page"><meta name="keywords" content="test,page"></head><body></body></html>',
+        );
+
+        $page = new Page($client, 'https://example.com');
+        $meta = $page->meta();
+
+        $this->assertSame('A test page', $meta['description']);
+        $this->assertSame('test,page', $meta['keywords']);
+    }
+
+    public function testMetaReturnsOpenGraphTags(): void
+    {
+        $client = $this->createClientStub();
+        $client->method('getPageSource')->willReturn(
+            '<html><head><meta property="og:title" content="OG Title"><meta property="og:type" content="website"></head><body></body></html>',
+        );
+
+        $page = new Page($client, 'https://example.com');
+        $meta = $page->meta();
+
+        $this->assertSame('OG Title', $meta['og:title']);
+        $this->assertSame('website', $meta['og:type']);
+    }
+
+    public function testMetaReturnsEmptyForNoMeta(): void
+    {
+        $client = $this->createClientStub();
+        $client->method('getPageSource')->willReturn('<html><head></head><body></body></html>');
+
+        $page = new Page($client, 'https://example.com');
+
+        $this->assertSame([], $page->meta());
+    }
     private function createClientStub(): ClientInterface
     {
         return $this->createStub(ClientInterface::class);

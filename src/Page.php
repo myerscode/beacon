@@ -104,6 +104,41 @@ class Page
     }
 
     /**
+     * Get all meta tags from the page as a keyed array.
+     * Standard meta tags use the name attribute as key.
+     * OpenGraph/Twitter tags use the property/name attribute as key.
+     *
+     * @return array<string, string>
+     */
+    public function meta(): array
+    {
+        $html = $this->source();
+        $meta = [];
+
+        // Match <meta name="..." content="..."> and <meta property="..." content="...">
+        if (preg_match_all('/<meta\s[^>]*>/i', $html, $tags)) {
+            foreach ($tags[0] as $tag) {
+                $key     = null;
+                $content = null;
+
+                if (preg_match('/(?:name|property)\s*=\s*["\']([^"\']*)["\']/', $tag, $keyMatch)) {
+                    $key = $keyMatch[1];
+                }
+
+                if (preg_match('/content\s*=\s*["\']([^"\']*)["\']/', $tag, $contentMatch)) {
+                    $content = $contentMatch[1];
+                }
+
+                if ($key !== null && $content !== null) {
+                    $meta[$key] = $content;
+                }
+            }
+        }
+
+        return $meta;
+    }
+
+    /**
      * Get all links found on the page.
      *
      * @return string[]
