@@ -47,65 +47,12 @@ $results = beacon()->visit('https://example.com')->crawl();
 $broken  = $results->broken();
 ```
 
-## Browser Configuration
-
-For more control, use the `Browser` class directly:
-
-```php
-use Myerscode\Beacon\Browser;
-
-$browser = Browser::create()
-    ->windowSize(1920, 1080)
-    ->waitTimeout(15)
-    ->chromeBinary('/usr/bin/google-chrome')
-    ->chromeDriverBinary('/usr/local/bin/chromedriver')
-    ->addArgument('--disable-extensions');
-
-$page = $browser->visit('https://example.com');
-
-// Done? Clean up.
-$browser->quit();
-```
-
-## Dependency Check
-
-Verify all required dependencies are installed:
-
-```php
-use Myerscode\Beacon\Support\DependencyChecker;
-
-foreach (DependencyChecker::check() as $check) {
-    $icon = $check->ok() ? '✓' : '✗';
-    echo "{$icon} {$check->name}: {$check->message}\n";
-}
-```
-
 ## Documentation
 
 - [Page](docs/page.md) — content, screenshots, PDF, links, meta, status code
 - [Lighthouse](docs/lighthouse.md) — category scores, individual audits, configuration, reports
 - [Crawler](docs/crawler.md) — concurrent spider crawl, broken link detection, retries, throttling
-
-## API Reference
-
-### `beacon(?array $windowSize, int $waitTimeout, array $arguments): Browser`
-
-Helper function. Creates and configures a Browser instance. Chain `->visit($url)` to get a Page.
-
-### `Browser`
-
-| Method | Description |
-|---|---|
-| `create(): Browser` | Static factory |
-| `windowSize(int $w, int $h): Browser` | Set viewport size |
-| `waitTimeout(int $seconds): Browser` | Set page load wait timeout |
-| `addArgument(string $arg): Browser` | Add a Chrome CLI argument |
-| `chromeBinary(string $path): Browser` | Custom Chrome binary path |
-| `chromeDriverBinary(string $path): Browser` | Custom ChromeDriver path |
-| `visit(string $url): Page` | Navigate to URL, returns Page |
-| `quit(): void` | Close browser and clean up |
-
-See [Page API](docs/page.md#api-reference), [Lighthouse API](docs/lighthouse.md#api-reference), and [Crawler API](docs/crawler.md#api-reference) for the full method reference.
+- [Advanced Usage](docs/advanced-usage.md) — browser configuration, dependency checking
 
 ## License
 
