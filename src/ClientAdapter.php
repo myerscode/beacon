@@ -6,6 +6,9 @@ namespace Myerscode\Beacon;
 
 use Symfony\Component\Panther\Client;
 
+/**
+ * @internal
+ */
 class ClientAdapter implements ClientInterface
 {
     public function __construct(private readonly Client $client)

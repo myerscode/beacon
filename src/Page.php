@@ -61,10 +61,22 @@ class Page
     public function crawl(?CrawlConfig $crawlConfig = null): CrawlResultCollection
     {
         $crawlConfig ??= new CrawlConfig();
-        $driver = $this->browser?->getDriver() ?? new ChromeDriverManager();
+        $ownDriver     = null;
+
+        if ($this->browser !== null) {
+            $driver = $this->browser->getDriver();
+        } else {
+            $ownDriver = new ChromeDriverManager();
+            $driver    = $ownDriver;
+        }
+
         $spiderCrawler = new SpiderCrawler($crawlConfig, $driver);
 
-        return $spiderCrawler->crawl($this->url, $this->source());
+        try {
+            return $spiderCrawler->crawl($this->url, $this->source());
+        } finally {
+            $ownDriver?->quit();
+        }
     }
 
     /**

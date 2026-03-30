@@ -6,6 +6,9 @@ namespace Myerscode\Beacon;
 
 use Symfony\Component\Panther\DomCrawler\Crawler;
 
+/**
+ * @internal
+ */
 class CrawlerAdapter implements CrawlerInterface
 {
     public function __construct(private readonly Crawler $crawler)

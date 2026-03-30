@@ -9,6 +9,9 @@ use Symfony\Component\Panther\Client;
 use Throwable;
 use Fiber;
 
+/**
+ * @internal
+ */
 class SpiderCrawler
 {
     private string $baseHost = '';
@@ -262,22 +265,33 @@ class SpiderCrawler
                     return $this->visitPageAsync($client, $item['url'], $item['depth'], $item['source']);
                 });
 
-                $fibers[$index]->start();
+                try {
+                    $fibers[$index]->start();
+                } catch (Throwable) {
+                    $clientAvailable[$index] = true;
+                    unset($fibers[$index], $fiberItems[$index]);
+                }
             }
 
             // Round-robin through active Fibers
             foreach ($fibers as $index => $fiber) {
-                if ($fiber->isTerminated()) {
-                    /** @var array<int, array{url: string}> $newLinks */
-                    $newLinks = $fiber->getReturn();
-                    $item     = $fiberItems[$index];
+                try {
+                    if ($fiber->isTerminated()) {
+                        /** @var array<int, array{url: string}> $newLinks */
+                        $newLinks = $fiber->getReturn();
+                        $item     = $fiberItems[$index];
 
-                    $this->enqueueLinks($newLinks, $item, $queue, $queued);
+                        $this->enqueueLinks($newLinks, $item, $queue, $queued);
 
+                        $clientAvailable[$index] = true;
+                        unset($fibers[$index], $fiberItems[$index]);
+                    } elseif ($fiber->isSuspended()) {
+                        $fiber->resume();
+                    }
+                } catch (Throwable) {
+                    // Fiber threw — release the client and move on
                     $clientAvailable[$index] = true;
                     unset($fibers[$index], $fiberItems[$index]);
-                } elseif ($fiber->isSuspended()) {
-                    $fiber->resume();
                 }
             }
         }
