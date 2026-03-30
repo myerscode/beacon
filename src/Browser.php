@@ -6,10 +6,6 @@ namespace Myerscode\Beacon;
 
 class Browser
 {
-    private ?ChromeDriverManager $chromeDriverManager = null;
-
-    private ?ClientInterface $client = null;
-
     /**
      * @var string[]
      */
@@ -20,23 +16,21 @@ class Browser
         '--disable-dev-shm-usage',
     ];
 
+    private ?string $chromeDriverBinary = null;
+    private ?ChromeDriverManager $chromeDriverManager = null;
+
+    private ?ClientInterface $client = null;
+
     private int $waitTimeout = 10;
 
-    private ?string $chromeDriverBinary = null;
+    public function __destruct()
+    {
+        $this->quit();
+    }
 
     public static function create(): self
     {
         return new self();
-    }
-
-    /**
-     * Set the browser window size.
-     */
-    public function windowSize(int $width, int $height): self
-    {
-        $this->arguments[] = sprintf('--window-size=%d,%d', $width, $height);
-
-        return $this;
     }
 
     /**
@@ -45,16 +39,6 @@ class Browser
     public function addArgument(string $argument): self
     {
         $this->arguments[] = $argument;
-
-        return $this;
-    }
-
-    /**
-     * Set the timeout for waiting on page loads (seconds).
-     */
-    public function waitTimeout(int $seconds): self
-    {
-        $this->waitTimeout = $seconds;
 
         return $this;
     }
@@ -77,18 +61,6 @@ class Browser
         $this->chromeDriverBinary = $path;
 
         return $this;
-    }
-
-    /**
-     * Navigate to a URL and return a Page instance for fluent interaction.
-     */
-    public function visit(string $url): Page
-    {
-        $client = $this->getAdapter();
-        $client->request('GET', $url);
-        $client->waitForPageReady($this->waitTimeout);
-
-        return new Page($client, $url, $this);
     }
 
     /**
@@ -117,9 +89,36 @@ class Browser
         }
     }
 
-    public function __destruct()
+    /**
+     * Navigate to a URL and return a Page instance for fluent interaction.
+     */
+    public function visit(string $url): Page
     {
-        $this->quit();
+        $client = $this->getAdapter();
+        $client->request('GET', $url);
+        $client->waitForPageReady($this->waitTimeout);
+
+        return new Page($client, $url, $this);
+    }
+
+    /**
+     * Set the timeout for waiting on page loads (seconds).
+     */
+    public function waitTimeout(int $seconds): self
+    {
+        $this->waitTimeout = $seconds;
+
+        return $this;
+    }
+
+    /**
+     * Set the browser window size.
+     */
+    public function windowSize(int $width, int $height): self
+    {
+        $this->arguments[] = sprintf('--window-size=%d,%d', $width, $height);
+
+        return $this;
     }
 
     private function getAdapter(): ClientInterface

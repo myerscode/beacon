@@ -17,14 +17,29 @@ class ClientAdapter implements ClientInterface
         return new CrawlerAdapter($this->client->getCrawler());
     }
 
+    public function getCurrentURL(): string
+    {
+        return $this->client->getCurrentURL();
+    }
+
+    public function getPageSource(): string
+    {
+        return $this->client->getPageSource();
+    }
+
     public function getTitle(): string
     {
         return $this->client->getTitle();
     }
 
-    public function getCurrentURL(): string
+    public function quit(): void
     {
-        return $this->client->getCurrentURL();
+        $this->client->quit();
+    }
+
+    public function request(string $method, string $uri): void
+    {
+        $this->client->request($method, $uri);
     }
 
     public function takeScreenshot(string $path): void
@@ -35,11 +50,6 @@ class ClientAdapter implements ClientInterface
     public function waitFor(string $selector, int $timeout = 30): void
     {
         $this->client->waitFor($selector, $timeout);
-    }
-
-    public function getPageSource(): string
-    {
-        return $this->client->getPageSource();
     }
 
     public function waitForPageReady(int $timeout = 30): void
@@ -65,15 +75,5 @@ class ClientAdapter implements ClientInterface
 
             usleep(200000);
         }
-    }
-
-    public function request(string $method, string $uri): void
-    {
-        $this->client->request($method, $uri);
-    }
-
-    public function quit(): void
-    {
-        $this->client->quit();
     }
 }

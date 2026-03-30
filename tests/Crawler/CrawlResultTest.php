@@ -26,6 +26,14 @@ final class CrawlResultTest extends TestCase
         $this->assertSame(0, $crawlResult->depth);
     }
 
+    public function testExternalResult(): void
+    {
+        $crawlResult = new CrawlResult('https://other.com', false, null, ['https://example.com'], 1);
+
+        $this->assertFalse($crawlResult->internal);
+        $this->assertNull($crawlResult->statusCode);
+    }
+
     public function testWithLinkedFromAddsSource(): void
     {
         $crawlResult = new CrawlResult('https://example.com/about', true, 200, ['/home'], 1);
@@ -53,13 +61,5 @@ final class CrawlResultTest extends TestCase
 
         $this->assertSame(404, $updated->statusCode);
         $this->assertNull($crawlResult->statusCode); // Original unchanged
-    }
-
-    public function testExternalResult(): void
-    {
-        $crawlResult = new CrawlResult('https://other.com', false, null, ['https://example.com'], 1);
-
-        $this->assertFalse($crawlResult->internal);
-        $this->assertNull($crawlResult->statusCode);
     }
 }

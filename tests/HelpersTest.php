@@ -21,9 +21,13 @@ final class HelpersTest extends TestCase
         $this->assertInstanceOf(Browser::class, $browser);
     }
 
-    public function testBeaconWithWindowSizeReturnsBrowser(): void
+    public function testBeaconWithAllOptionsReturnsBrowser(): void
     {
-        $browser = beacon(windowSize: [1920, 1080]);
+        $browser = beacon(
+            windowSize: [1440, 900],
+            waitTimeout: 30,
+            arguments: ['--disable-extensions', '--incognito'],
+        );
 
         $this->assertInstanceOf(Browser::class, $browser);
     }
@@ -35,13 +39,9 @@ final class HelpersTest extends TestCase
         $this->assertInstanceOf(Browser::class, $browser);
     }
 
-    public function testBeaconWithAllOptionsReturnsBrowser(): void
+    public function testBeaconWithWindowSizeReturnsBrowser(): void
     {
-        $browser = beacon(
-            windowSize: [1440, 900],
-            waitTimeout: 30,
-            arguments: ['--disable-extensions', '--incognito'],
-        );
+        $browser = beacon(windowSize: [1920, 1080]);
 
         $this->assertInstanceOf(Browser::class, $browser);
     }

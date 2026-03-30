@@ -35,9 +35,9 @@ $internal = $results->internal();
 $external = $results->external();
 $broken   = $results->broken();
 
-echo "Internal: " . count($internal) . "\n";
-echo "External: " . count($external) . "\n";
-echo "Broken:   " . count($broken) . "\n\n";
+echo 'Internal: ' . count($internal) . "\n";
+echo 'External: ' . count($external) . "\n";
+echo 'Broken:   ' . count($broken) . "\n\n";
 
 if ($broken !== []) {
     echo "--- Broken Links ---\n";

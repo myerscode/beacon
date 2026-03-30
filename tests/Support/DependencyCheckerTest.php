@@ -10,15 +10,6 @@ use PHPUnit\Framework\TestCase;
 
 final class DependencyCheckerTest extends TestCase
 {
-    public function testCheckReturnsArrayOfChecks(): void
-    {
-        $results = DependencyChecker::check();
-
-        $this->assertGreaterThanOrEqual(4, count($results));
-
-        $this->assertContainsOnlyInstancesOf(DependencyCheck::class, $results);
-    }
-
     public function testCheckContainsExpectedNames(): void
     {
         $results = DependencyChecker::check();
@@ -28,6 +19,14 @@ final class DependencyCheckerTest extends TestCase
         $this->assertContains('ChromeDriver', $names);
         $this->assertContains('Node.js', $names);
         $this->assertContains('Lighthouse', $names);
+    }
+    public function testCheckReturnsArrayOfChecks(): void
+    {
+        $results = DependencyChecker::check();
+
+        $this->assertGreaterThanOrEqual(4, count($results));
+
+        $this->assertContainsOnlyInstancesOf(DependencyCheck::class, $results);
     }
 
     public function testChromeCheckReturnsDependencyCheck(): void
@@ -46,12 +45,13 @@ final class DependencyCheckerTest extends TestCase
         $this->assertSame('ChromeDriver', $dependencyCheck->name);
     }
 
-    public function testNodeCheckReturnsDependencyCheck(): void
+    public function testEachCheckHasMessage(): void
     {
-        $dependencyCheck = DependencyChecker::node();
+        $results = DependencyChecker::check();
 
-        $this->assertInstanceOf(DependencyCheck::class, $dependencyCheck);
-        $this->assertSame('Node.js', $dependencyCheck->name);
+        foreach ($results as $result) {
+            $this->assertNotEmpty($result->message);
+        }
     }
 
     public function testLighthouseCheckReturnsDependencyCheck(): void
@@ -62,12 +62,11 @@ final class DependencyCheckerTest extends TestCase
         $this->assertSame('Lighthouse', $dependencyCheck->name);
     }
 
-    public function testEachCheckHasMessage(): void
+    public function testNodeCheckReturnsDependencyCheck(): void
     {
-        $results = DependencyChecker::check();
+        $dependencyCheck = DependencyChecker::node();
 
-        foreach ($results as $result) {
-            $this->assertNotEmpty($result->message);
-        }
+        $this->assertInstanceOf(DependencyCheck::class, $dependencyCheck);
+        $this->assertSame('Node.js', $dependencyCheck->name);
     }
 }

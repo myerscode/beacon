@@ -8,19 +8,19 @@ interface ClientInterface
 {
     public function getCrawler(): CrawlerInterface;
 
+    public function getCurrentURL(): string;
+
+    public function getPageSource(): string;
+
     public function getTitle(): string;
 
-    public function getCurrentURL(): string;
+    public function quit(): void;
+
+    public function request(string $method, string $uri): void;
 
     public function takeScreenshot(string $path): void;
 
     public function waitFor(string $selector, int $timeout = 30): void;
 
-    public function getPageSource(): string;
-
     public function waitForPageReady(int $timeout = 30): void;
-
-    public function request(string $method, string $uri): void;
-
-    public function quit(): void;
 }

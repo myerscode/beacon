@@ -14,28 +14,6 @@ class LighthouseResult
     }
 
     /**
-     * Get category scores, optionally filtered.
-     *
-     * @return array<string, int|null>
-     */
-    public function scores(Category ...$categories): array
-    {
-        $allCategories = $this->raw['categories'] ?? [];
-        $filter        = array_map(fn (Category $category) => $category->value, $categories);
-        $scores        = [];
-
-        foreach ($allCategories as $key => $data) {
-            if ($filter !== [] && !in_array($key, $filter, true)) {
-                continue;
-            }
-
-            $scores[$key] = isset($data['score']) ? (int) round($data['score'] * 100) : null;
-        }
-
-        return $scores;
-    }
-
-    /**
      * Get audit results. No args = all audits. Pass one or more to filter.
      *
      * @return array<string, array<string, mixed>>
@@ -77,5 +55,27 @@ class LighthouseResult
         file_put_contents($path, json_encode($this->raw, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
         return $this;
+    }
+
+    /**
+     * Get category scores, optionally filtered.
+     *
+     * @return array<string, int|null>
+     */
+    public function scores(Category ...$categories): array
+    {
+        $allCategories = $this->raw['categories'] ?? [];
+        $filter        = array_map(fn (Category $category) => $category->value, $categories);
+        $scores        = [];
+
+        foreach ($allCategories as $key => $data) {
+            if ($filter !== [] && !in_array($key, $filter, true)) {
+                continue;
+            }
+
+            $scores[$key] = isset($data['score']) ? (int) round($data['score'] * 100) : null;
+        }
+
+        return $scores;
     }
 }

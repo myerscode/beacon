@@ -40,16 +40,6 @@ class CrawlResultCollection implements Countable, IteratorAggregate
         }
     }
 
-    public function has(string $url): bool
-    {
-        return isset($this->results[$url]);
-    }
-
-    public function get(string $url): ?CrawlResult
-    {
-        return $this->results[$url] ?? null;
-    }
-
     /**
      * Get all results.
      *
@@ -58,36 +48,6 @@ class CrawlResultCollection implements Countable, IteratorAggregate
     public function all(): array
     {
         return $this->results;
-    }
-
-    /**
-     * Get only internal results.
-     *
-     * @return array<string, CrawlResult>
-     */
-    public function internal(): array
-    {
-        return array_filter($this->results, fn (CrawlResult $crawlResult): bool => $crawlResult->internal);
-    }
-
-    /**
-     * Get only external results.
-     *
-     * @return array<string, CrawlResult>
-     */
-    public function external(): array
-    {
-        return array_filter($this->results, fn (CrawlResult $crawlResult): bool => !$crawlResult->internal);
-    }
-
-    /**
-     * Get results with a specific status code.
-     *
-     * @return array<string, CrawlResult>
-     */
-    public function withStatus(int $statusCode): array
-    {
-        return array_filter($this->results, fn (CrawlResult $crawlResult): bool => $crawlResult->statusCode === $statusCode);
     }
 
     /**
@@ -109,10 +69,50 @@ class CrawlResultCollection implements Countable, IteratorAggregate
     }
 
     /**
+     * Get only external results.
+     *
+     * @return array<string, CrawlResult>
+     */
+    public function external(): array
+    {
+        return array_filter($this->results, fn (CrawlResult $crawlResult): bool => !$crawlResult->internal);
+    }
+
+    public function get(string $url): ?CrawlResult
+    {
+        return $this->results[$url] ?? null;
+    }
+
+    /**
      * @return ArrayIterator<string, CrawlResult>
      */
     public function getIterator(): ArrayIterator
     {
         return new ArrayIterator($this->results);
+    }
+
+    public function has(string $url): bool
+    {
+        return isset($this->results[$url]);
+    }
+
+    /**
+     * Get only internal results.
+     *
+     * @return array<string, CrawlResult>
+     */
+    public function internal(): array
+    {
+        return array_filter($this->results, fn (CrawlResult $crawlResult): bool => $crawlResult->internal);
+    }
+
+    /**
+     * Get results with a specific status code.
+     *
+     * @return array<string, CrawlResult>
+     */
+    public function withStatus(int $statusCode): array
+    {
+        return array_filter($this->results, fn (CrawlResult $crawlResult): bool => $crawlResult->statusCode === $statusCode);
     }
 }

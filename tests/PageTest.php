@@ -11,35 +11,53 @@ use PHPUnit\Framework\TestCase;
 
 final class PageTest extends TestCase
 {
-    private function createMockClient(): ClientInterface
+    public function testAttributeReturnsNullWhenMissing(): void
     {
-        return $this->createMock(ClientInterface::class);
-    }
+        $elementCrawler = $this->createCrawlerStub();
+        $elementCrawler->method('attr')->willReturn(null);
 
-    private function createMockCrawler(): CrawlerInterface
-    {
-        return $this->createMock(CrawlerInterface::class);
-    }
+        $filterCrawler = $this->createCrawlerStub();
+        $filterCrawler->method('first')->willReturn($elementCrawler);
 
-    public function testSourceReturnsHtml(): void
-    {
-        $client = $this->createMockClient();
-        $client->method('getPageSource')->willReturn('<html><body>Hello</body></html>');
+        $crawler = $this->createCrawlerStub();
+        $crawler->method('filter')->willReturn($filterCrawler);
+
+        $client = $this->createClientStub();
+        $client->method('getCrawler')->willReturn($crawler);
 
         $page = new Page($client, 'https://example.com');
 
-        $this->assertSame('<html><body>Hello</body></html>', $page->source());
+        $this->assertNull($page->attribute('div', 'data-id'));
+    }
+
+    public function testAttributeReturnsValue(): void
+    {
+        $elementCrawler = $this->createCrawlerStub();
+        $elementCrawler->method('attr')->willReturn('/about');
+
+        $filterCrawler = $this->createCrawlerStub();
+        $filterCrawler->method('first')->willReturn($elementCrawler);
+
+        $crawler = $this->createCrawlerStub();
+        $crawler->method('filter')->willReturn($filterCrawler);
+
+        $client = $this->createClientStub();
+        $client->method('getCrawler')->willReturn($crawler);
+
+        $page = new Page($client, 'https://example.com');
+
+        $this->assertSame('/about', $page->attribute('a.link', 'href'));
     }
 
     public function testBodyReturnsBodyHtml(): void
     {
-        $bodyCrawler = $this->createMockCrawler();
+        $bodyCrawler = $this->createCrawlerStub();
         $bodyCrawler->method('html')->willReturn('<p>Hello</p>');
 
-        $crawler = $this->createMockCrawler();
-        $crawler->method('filter')->with('body')->willReturn($bodyCrawler);
+        $crawler = $this->createCrawlerStub();
+        $crawler->method('filter')->willReturn($bodyCrawler);
 
-        $client = $this->createMockClient();
+        $client = $this->createClientStub();
         $client->method('getCrawler')->willReturn($crawler);
 
         $page = new Page($client, 'https://example.com');
@@ -47,19 +65,21 @@ final class PageTest extends TestCase
         $this->assertSame('<p>Hello</p>', $page->body());
     }
 
-    public function testTitleReturnsPageTitle(): void
+    public function testCrawlerReturnsUnderlyingCrawler(): void
     {
-        $client = $this->createMockClient();
-        $client->method('getTitle')->willReturn('Example Page');
+        $crawler = $this->createCrawlerStub();
+
+        $client = $this->createClientStub();
+        $client->method('getCrawler')->willReturn($crawler);
 
         $page = new Page($client, 'https://example.com');
 
-        $this->assertSame('Example Page', $page->title());
+        $this->assertSame($crawler, $page->crawler());
     }
 
     public function testCurrentUrlReturnsUrl(): void
     {
-        $client = $this->createMockClient();
+        $client = $this->createClientStub();
         $client->method('getCurrentURL')->willReturn('https://example.com/redirected');
 
         $page = new Page($client, 'https://example.com');
@@ -67,9 +87,41 @@ final class PageTest extends TestCase
         $this->assertSame('https://example.com/redirected', $page->currentUrl());
     }
 
+    public function testHasReturnsFalseWhenElementMissing(): void
+    {
+        $filterCrawler = $this->createCrawlerStub();
+        $filterCrawler->method('count')->willReturn(0);
+
+        $crawler = $this->createCrawlerStub();
+        $crawler->method('filter')->willReturn($filterCrawler);
+
+        $client = $this->createClientStub();
+        $client->method('getCrawler')->willReturn($crawler);
+
+        $page = new Page($client, 'https://example.com');
+
+        $this->assertFalse($page->has('.missing'));
+    }
+
+    public function testHasReturnsTrueWhenElementExists(): void
+    {
+        $filterCrawler = $this->createCrawlerStub();
+        $filterCrawler->method('count')->willReturn(1);
+
+        $crawler = $this->createCrawlerStub();
+        $crawler->method('filter')->willReturn($filterCrawler);
+
+        $client = $this->createClientStub();
+        $client->method('getCrawler')->willReturn($crawler);
+
+        $page = new Page($client, 'https://example.com');
+
+        $this->assertTrue($page->has('.exists'));
+    }
+
     public function testScreenshotReturnsSelf(): void
     {
-        $client = $this->createMockClient();
+        $client = $this->createMock(ClientInterface::class);
         $client->expects($this->once())
             ->method('takeScreenshot')
             ->with('/tmp/test.png');
@@ -79,37 +131,28 @@ final class PageTest extends TestCase
         $this->assertSame($page, $page->screenshot('/tmp/test.png'));
     }
 
-    public function testTextReturnsElementText(): void
+    public function testSourceReturnsHtml(): void
     {
-        $elementCrawler = $this->createMockCrawler();
-        $elementCrawler->method('text')->willReturn('Hello World');
-
-        $filterCrawler = $this->createMockCrawler();
-        $filterCrawler->method('first')->willReturn($elementCrawler);
-
-        $crawler = $this->createMockCrawler();
-        $crawler->method('filter')->with('h1')->willReturn($filterCrawler);
-
-        $client = $this->createMockClient();
-        $client->method('getCrawler')->willReturn($crawler);
+        $client = $this->createClientStub();
+        $client->method('getPageSource')->willReturn('<html><body>Hello</body></html>');
 
         $page = new Page($client, 'https://example.com');
 
-        $this->assertSame('Hello World', $page->text('h1'));
+        $this->assertSame('<html><body>Hello</body></html>', $page->source());
     }
 
     public function testTextDefaultsToBody(): void
     {
-        $elementCrawler = $this->createMockCrawler();
+        $elementCrawler = $this->createCrawlerStub();
         $elementCrawler->method('text')->willReturn('Body text');
 
-        $filterCrawler = $this->createMockCrawler();
+        $filterCrawler = $this->createCrawlerStub();
         $filterCrawler->method('first')->willReturn($elementCrawler);
 
-        $crawler = $this->createMockCrawler();
-        $crawler->method('filter')->with('body')->willReturn($filterCrawler);
+        $crawler = $this->createCrawlerStub();
+        $crawler->method('filter')->willReturn($filterCrawler);
 
-        $client = $this->createMockClient();
+        $client = $this->createClientStub();
         $client->method('getCrawler')->willReturn($crawler);
 
         $page = new Page($client, 'https://example.com');
@@ -117,94 +160,50 @@ final class PageTest extends TestCase
         $this->assertSame('Body text', $page->text());
     }
 
-    public function testAttributeReturnsValue(): void
+    public function testTextReturnsElementText(): void
     {
-        $elementCrawler = $this->createMockCrawler();
-        $elementCrawler->method('attr')->with('href')->willReturn('/about');
+        $elementCrawler = $this->createCrawlerStub();
+        $elementCrawler->method('text')->willReturn('Hello World');
 
-        $filterCrawler = $this->createMockCrawler();
+        $filterCrawler = $this->createCrawlerStub();
         $filterCrawler->method('first')->willReturn($elementCrawler);
 
-        $crawler = $this->createMockCrawler();
-        $crawler->method('filter')->with('a.link')->willReturn($filterCrawler);
+        $crawler = $this->createCrawlerStub();
+        $crawler->method('filter')->willReturn($filterCrawler);
 
-        $client = $this->createMockClient();
+        $client = $this->createClientStub();
         $client->method('getCrawler')->willReturn($crawler);
 
         $page = new Page($client, 'https://example.com');
 
-        $this->assertSame('/about', $page->attribute('a.link', 'href'));
+        $this->assertSame('Hello World', $page->text('h1'));
     }
 
-    public function testAttributeReturnsNullWhenMissing(): void
+    public function testTitleReturnsPageTitle(): void
     {
-        $elementCrawler = $this->createMockCrawler();
-        $elementCrawler->method('attr')->with('data-id')->willReturn(null);
-
-        $filterCrawler = $this->createMockCrawler();
-        $filterCrawler->method('first')->willReturn($elementCrawler);
-
-        $crawler = $this->createMockCrawler();
-        $crawler->method('filter')->with('div')->willReturn($filterCrawler);
-
-        $client = $this->createMockClient();
-        $client->method('getCrawler')->willReturn($crawler);
+        $client = $this->createClientStub();
+        $client->method('getTitle')->willReturn('Example Page');
 
         $page = new Page($client, 'https://example.com');
 
-        $this->assertNull($page->attribute('div', 'data-id'));
-    }
-
-    public function testHasReturnsTrueWhenElementExists(): void
-    {
-        $filterCrawler = $this->createMockCrawler();
-        $filterCrawler->method('count')->willReturn(1);
-
-        $crawler = $this->createMockCrawler();
-        $crawler->method('filter')->with('.exists')->willReturn($filterCrawler);
-
-        $client = $this->createMockClient();
-        $client->method('getCrawler')->willReturn($crawler);
-
-        $page = new Page($client, 'https://example.com');
-
-        $this->assertTrue($page->has('.exists'));
-    }
-
-    public function testHasReturnsFalseWhenElementMissing(): void
-    {
-        $filterCrawler = $this->createMockCrawler();
-        $filterCrawler->method('count')->willReturn(0);
-
-        $crawler = $this->createMockCrawler();
-        $crawler->method('filter')->with('.missing')->willReturn($filterCrawler);
-
-        $client = $this->createMockClient();
-        $client->method('getCrawler')->willReturn($crawler);
-
-        $page = new Page($client, 'https://example.com');
-
-        $this->assertFalse($page->has('.missing'));
-    }
-
-    public function testCrawlerReturnsUnderlyingCrawler(): void
-    {
-        $crawler = $this->createMockCrawler();
-
-        $client = $this->createMockClient();
-        $client->method('getCrawler')->willReturn($crawler);
-
-        $page = new Page($client, 'https://example.com');
-
-        $this->assertSame($crawler, $page->crawler());
+        $this->assertSame('Example Page', $page->title());
     }
 
     public function testUrlReturnsOriginalUrl(): void
     {
-        $client = $this->createMockClient();
+        $client = $this->createClientStub();
 
         $page = new Page($client, 'https://example.com');
 
         $this->assertSame('https://example.com', $page->url());
+    }
+    private function createClientStub(): ClientInterface
+    {
+        return $this->createStub(ClientInterface::class);
+    }
+
+    private function createCrawlerStub(): CrawlerInterface
+    {
+        return $this->createStub(CrawlerInterface::class);
     }
 }

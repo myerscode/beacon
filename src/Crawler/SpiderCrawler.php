@@ -10,13 +10,12 @@ use Throwable;
 
 class SpiderCrawler
 {
-    private readonly CrawlResultCollection $crawlResultCollection;
-
     private string $baseHost = '';
 
     private string $baseScheme = '';
 
     private string $baseUrl = '';
+    private readonly CrawlResultCollection $crawlResultCollection;
 
     public function __construct(
         private readonly CrawlConfig $crawlConfig,
@@ -136,6 +135,42 @@ class SpiderCrawler
         return $links;
     }
 
+    private function getDirectoryPath(string $url): string
+    {
+        $parsed = parse_url($url);
+        $path   = $parsed['path'] ?? '/';
+
+        // Get directory portion of the path
+        $dir = dirname($path);
+
+        return $dir === '.' ? '/' : $dir;
+    }
+
+    private function getStatusCode(Client $client): int
+    {
+        try {
+            /** @var int $code */
+            $code = $client->executeScript('return window.performance.getEntriesByType("navigation")[0]?.responseStatus || 200');
+
+            return (int) $code;
+        } catch (Throwable) {
+            return 200;
+        }
+    }
+
+    private function isInternal(string $url): bool
+    {
+        $parsed = parse_url($url);
+        $host   = $parsed['host'] ?? '';
+
+        return $host === $this->baseHost;
+    }
+
+    private function normalizeUrl(string $url): string
+    {
+        return $this->stripFragment(rtrim($url, '/'));
+    }
+
     /**
      * @param array<int, array{url: string, depth: int, source: string}> $queue
      * @param array<string, bool>                                        $queued
@@ -203,6 +238,48 @@ class SpiderCrawler
         }
     }
 
+    private function resolveUrl(string $href, string $currentPageUrl): string
+    {
+        $href = trim($href);
+
+        // Skip non-http links
+        if (str_starts_with($href, 'mailto:')
+            || str_starts_with($href, 'tel:')
+            || str_starts_with($href, 'javascript:')
+            || str_starts_with($href, '#')
+            || $href === ''
+        ) {
+            return '';
+        }
+
+        // Protocol-relative
+        if (str_starts_with($href, '//')) {
+            return sprintf('%s:%s', $this->baseScheme, $href);
+        }
+
+        // Absolute URL
+        if (str_starts_with($href, 'http://') || str_starts_with($href, 'https://')) {
+            return $this->stripFragment($href);
+        }
+
+        // Root-relative
+        if (str_starts_with($href, '/')) {
+            return $this->stripFragment($this->baseUrl . $href);
+        }
+
+        // Relative URL — resolve against current page
+        $basePath = $this->getDirectoryPath($currentPageUrl);
+
+        return $this->stripFragment(sprintf('%s%s/%s', $this->baseUrl, $basePath, $href));
+    }
+
+    private function stripFragment(string $url): string
+    {
+        $pos = strpos($url, '#');
+
+        return $pos !== false ? substr($url, 0, $pos) : $url;
+    }
+
     /**
      * @return array<int, array{url: string}>
      */
@@ -260,83 +337,5 @@ class SpiderCrawler
 
             usleep(200000);
         }
-    }
-
-    private function getStatusCode(Client $client): int
-    {
-        try {
-            /** @var int $code */
-            $code = $client->executeScript('return window.performance.getEntriesByType("navigation")[0]?.responseStatus || 200');
-
-            return (int) $code;
-        } catch (Throwable) {
-            return 200;
-        }
-    }
-
-    private function isInternal(string $url): bool
-    {
-        $parsed = parse_url($url);
-        $host   = $parsed['host'] ?? '';
-
-        return $host === $this->baseHost;
-    }
-
-    private function resolveUrl(string $href, string $currentPageUrl): string
-    {
-        $href = trim($href);
-
-        // Skip non-http links
-        if (str_starts_with($href, 'mailto:')
-            || str_starts_with($href, 'tel:')
-            || str_starts_with($href, 'javascript:')
-            || str_starts_with($href, '#')
-            || $href === ''
-        ) {
-            return '';
-        }
-
-        // Protocol-relative
-        if (str_starts_with($href, '//')) {
-            return sprintf('%s:%s', $this->baseScheme, $href);
-        }
-
-        // Absolute URL
-        if (str_starts_with($href, 'http://') || str_starts_with($href, 'https://')) {
-            return $this->stripFragment($href);
-        }
-
-        // Root-relative
-        if (str_starts_with($href, '/')) {
-            return $this->stripFragment($this->baseUrl . $href);
-        }
-
-        // Relative URL — resolve against current page
-        $basePath = $this->getDirectoryPath($currentPageUrl);
-
-        return $this->stripFragment(sprintf('%s%s/%s', $this->baseUrl, $basePath, $href));
-    }
-
-    private function getDirectoryPath(string $url): string
-    {
-        $parsed = parse_url($url);
-        $path   = $parsed['path'] ?? '/';
-
-        // Get directory portion of the path
-        $dir = dirname($path);
-
-        return $dir === '.' ? '/' : $dir;
-    }
-
-    private function normalizeUrl(string $url): string
-    {
-        return $this->stripFragment(rtrim($url, '/'));
-    }
-
-    private function stripFragment(string $url): string
-    {
-        $pos = strpos($url, '#');
-
-        return $pos !== false ? substr($url, 0, $pos) : $url;
     }
 }

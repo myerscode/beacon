@@ -12,19 +12,14 @@ class CrawlerAdapter implements CrawlerInterface
     {
     }
 
-    public function html(): string
-    {
-        return $this->crawler->html();
-    }
-
-    public function text(?string $default = null): string
-    {
-        return $this->crawler->text($default);
-    }
-
     public function attr(string $attribute): ?string
     {
         return $this->crawler->attr($attribute);
+    }
+
+    public function count(): int
+    {
+        return $this->crawler->count();
     }
 
     public function filter(string $selector): CrawlerInterface
@@ -37,8 +32,13 @@ class CrawlerAdapter implements CrawlerInterface
         return new self($this->crawler->first());
     }
 
-    public function count(): int
+    public function html(): string
     {
-        return $this->crawler->count();
+        return $this->crawler->html();
+    }
+
+    public function text(?string $default = null): string
+    {
+        return $this->crawler->text($default);
     }
 }

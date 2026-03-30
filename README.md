@@ -1,3 +1,10 @@
+[![Latest Stable Version](https://poser.pugx.org/myerscode/beacon/v/stable)](https://packagist.org/packages/myerscode/beacon)
+[![Total Downloads](https://poser.pugx.org/myerscode/beacon/downloads)](https://packagist.org/packages/myerscode/beacon)
+[![PHP Version Require](http://poser.pugx.org/myerscode/beacon/require/php)](https://packagist.org/packages/myerscode/beacon)
+[![License](https://poser.pugx.org/myerscode/beacon/license)](https://github.com/myerscode/beacon/blob/main/LICENSE)
+[![Tests](https://github.com/myerscode/beacon/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/myerscode/beacon/actions/workflows/tests.yml)
+[![codecov](https://codecov.io/gh/myerscode/beacon/graph/badge.svg)](https://codecov.io/gh/myerscode/beacon)
+
 # Beacon
 
 A fluent PHP wrapper around [Symfony Panther](https://github.com/symfony/panther) that makes interacting with web pages simple. Renders JavaScript-heavy pages (SPAs, React, Vue, etc.) and provides an easy API for grabbing source code, taking screenshots, interacting with page elements, and running Lighthouse audits.

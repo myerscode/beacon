@@ -29,97 +29,11 @@ class Page
     }
 
     /**
-     * Get the fully rendered HTML source of the page.
-     */
-    public function source(): string
-    {
-        return $this->client->getPageSource();
-    }
-
-    /**
-     * Get only the inner HTML of the <body> element.
-     */
-    public function body(): string
-    {
-        return $this->client->getCrawler()->filter('body')->html();
-    }
-
-    /**
-     * Get the page title.
-     */
-    public function title(): string
-    {
-        return $this->client->getTitle();
-    }
-
-    /**
-     * Get the current URL (after any redirects).
-     */
-    public function currentUrl(): string
-    {
-        return $this->client->getCurrentURL();
-    }
-
-    /**
-     * Take a screenshot and save it to the given path.
-     */
-    public function screenshot(string $path): self
-    {
-        $this->client->takeScreenshot($path);
-
-        return $this;
-    }
-
-    /**
-     * Get the text content of an element matching the given CSS selector.
-     */
-    public function text(string $selector = 'body'): string
-    {
-        return $this->client->getCrawler()->filter($selector)->first()->text();
-    }
-
-    /**
      * Get the value of an attribute on the first element matching the selector.
      */
     public function attribute(string $selector, string $attribute): ?string
     {
         return $this->client->getCrawler()->filter($selector)->first()->attr($attribute);
-    }
-
-    /**
-     * Check if an element matching the selector exists on the page.
-     */
-    public function has(string $selector): bool
-    {
-        return $this->client->getCrawler()->filter($selector)->count() > 0;
-    }
-
-    /**
-     * Get the underlying Crawler instance for advanced usage.
-     */
-    public function crawler(): CrawlerInterface
-    {
-        return $this->client->getCrawler();
-    }
-
-    /**
-     * Set a custom LighthouseRunner for this page.
-     */
-    public function withLighthouseRunner(LighthouseRunner $lighthouseRunner): self
-    {
-        $this->lighthouseRunner = $lighthouseRunner;
-
-        return $this;
-    }
-
-    /**
-     * Get Lighthouse category scores. No args = all categories.
-     *
-     * @return array<string, int|null>
-     */
-    public function lighthouse(Category ...$categories): array
-    {
-        return $this->getLighthouseResult()->scores(...$categories);
     }
 
     /**
@@ -133,21 +47,11 @@ class Page
     }
 
     /**
-     * Get the full LighthouseResult object for advanced usage.
+     * Get only the inner HTML of the <body> element.
      */
-    public function lighthouseResult(): LighthouseResult
+    public function body(): string
     {
-        return $this->getLighthouseResult();
-    }
-
-    private function getLighthouseResult(): LighthouseResult
-    {
-        if (!$this->lighthouseResult instanceof LighthouseResult) {
-            $runner                 = $this->lighthouseRunner ?? new LighthouseRunner();
-            $this->lighthouseResult = $runner->run($this->url);
-        }
-
-        return $this->lighthouseResult;
+        return $this->client->getCrawler()->filter('body')->html();
     }
 
     /**
@@ -164,10 +68,106 @@ class Page
     }
 
     /**
+     * Get the underlying Crawler instance for advanced usage.
+     */
+    public function crawler(): CrawlerInterface
+    {
+        return $this->client->getCrawler();
+    }
+
+    /**
+     * Get the current URL (after any redirects).
+     */
+    public function currentUrl(): string
+    {
+        return $this->client->getCurrentURL();
+    }
+
+    /**
+     * Check if an element matching the selector exists on the page.
+     */
+    public function has(string $selector): bool
+    {
+        return $this->client->getCrawler()->filter($selector)->count() > 0;
+    }
+
+    /**
+     * Get Lighthouse category scores. No args = all categories.
+     *
+     * @return array<string, int|null>
+     */
+    public function lighthouse(Category ...$categories): array
+    {
+        return $this->getLighthouseResult()->scores(...$categories);
+    }
+
+    /**
+     * Get the full LighthouseResult object for advanced usage.
+     */
+    public function lighthouseResult(): LighthouseResult
+    {
+        return $this->getLighthouseResult();
+    }
+
+    /**
+     * Take a screenshot and save it to the given path.
+     */
+    public function screenshot(string $path): self
+    {
+        $this->client->takeScreenshot($path);
+
+        return $this;
+    }
+
+    /**
+     * Get the fully rendered HTML source of the page.
+     */
+    public function source(): string
+    {
+        return $this->client->getPageSource();
+    }
+
+    /**
+     * Get the text content of an element matching the given CSS selector.
+     */
+    public function text(string $selector = 'body'): string
+    {
+        return $this->client->getCrawler()->filter($selector)->first()->text();
+    }
+
+    /**
+     * Get the page title.
+     */
+    public function title(): string
+    {
+        return $this->client->getTitle();
+    }
+
+    /**
      * Get the original URL this page was loaded from.
      */
     public function url(): string
     {
         return $this->url;
+    }
+
+    /**
+     * Set a custom LighthouseRunner for this page.
+     */
+    public function withLighthouseRunner(LighthouseRunner $lighthouseRunner): self
+    {
+        $this->lighthouseRunner = $lighthouseRunner;
+
+        return $this;
+    }
+
+    private function getLighthouseResult(): LighthouseResult
+    {
+        if (!$this->lighthouseResult instanceof LighthouseResult) {
+            $runner                 = $this->lighthouseRunner ?? new LighthouseRunner();
+            $this->lighthouseResult = $runner->run($this->url);
+        }
+
+        return $this->lighthouseResult;
     }
 }

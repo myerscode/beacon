@@ -9,22 +9,24 @@ use Symfony\Component\Process\Process;
 
 class LighthouseRunner
 {
-    private string $lighthouseBinary = 'lighthouse';
-
-    private string $chromePath = '';
-
-    private string $formFactor = 'mobile';
-
     /**
      * @var string[]
      */
     private array $chromeFlags = ['--headless', '--no-sandbox'];
 
+    private string $chromePath = '';
+
+    private string $formFactor = 'mobile';
+    private string $lighthouseBinary = 'lighthouse';
+
     private int $timeout = 120;
 
-    public function lighthouseBinary(string $path): self
+    /**
+     * @param string[] $flags
+     */
+    public function chromeFlags(array $flags): self
     {
-        $this->lighthouseBinary = $path;
+        $this->chromeFlags = $flags;
 
         return $this;
     }
@@ -36,13 +38,6 @@ class LighthouseRunner
         return $this;
     }
 
-    public function formFactor(string $formFactor): self
-    {
-        $this->formFactor = $formFactor;
-
-        return $this;
-    }
-
     public function desktop(): self
     {
         $this->formFactor = 'desktop';
@@ -50,26 +45,23 @@ class LighthouseRunner
         return $this;
     }
 
+    public function formFactor(string $formFactor): self
+    {
+        $this->formFactor = $formFactor;
+
+        return $this;
+    }
+
+    public function lighthouseBinary(string $path): self
+    {
+        $this->lighthouseBinary = $path;
+
+        return $this;
+    }
+
     public function mobile(): self
     {
         $this->formFactor = 'mobile';
-
-        return $this;
-    }
-
-    public function timeout(int $seconds): self
-    {
-        $this->timeout = $seconds;
-
-        return $this;
-    }
-
-    /**
-     * @param string[] $flags
-     */
-    public function chromeFlags(array $flags): self
-    {
-        $this->chromeFlags = $flags;
 
         return $this;
     }
@@ -104,7 +96,7 @@ class LighthouseRunner
 
         if (!$process->isSuccessful()) {
             throw new RuntimeException(
-                'Lighthouse failed: ' . $process->getErrorOutput()
+                'Lighthouse failed: ' . $process->getErrorOutput(),
             );
         }
 
@@ -112,5 +104,12 @@ class LighthouseRunner
         $data = json_decode($process->getOutput(), true, 512, JSON_THROW_ON_ERROR);
 
         return new LighthouseResult($data);
+    }
+
+    public function timeout(int $seconds): self
+    {
+        $this->timeout = $seconds;
+
+        return $this;
     }
 }

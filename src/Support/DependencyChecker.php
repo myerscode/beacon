@@ -28,37 +28,6 @@ class DependencyChecker
     }
 
     /**
-     * Check Chrome and ChromeDriver major versions match.
-     */
-    private static function versionCompatibility(DependencyCheck $chrome, DependencyCheck $chromeDriver): ?DependencyCheck
-    {
-        if (!$chrome->found || !$chromeDriver->found || $chrome->version === null || $chromeDriver->version === null) {
-            return null;
-        }
-
-        $chromeMajor = (int) explode('.', $chrome->version)[0];
-        $driverMajor = (int) explode('.', $chromeDriver->version)[0];
-
-        if ($chromeMajor === $driverMajor) {
-            return new DependencyCheck(
-                'Version Match',
-                true,
-                null,
-                null,
-                sprintf('Chrome (%d) and ChromeDriver (%d) major versions match', $chromeMajor, $driverMajor),
-            );
-        }
-
-        return new DependencyCheck(
-            'Version Match',
-            false,
-            null,
-            null,
-            sprintf('Chrome (%d) and ChromeDriver (%d) major versions differ. They must match.', $chromeMajor, $driverMajor),
-        );
-    }
-
-    /**
      * Check if Chrome or Chromium is installed.
      */
     public static function chrome(): DependencyCheck
@@ -136,34 +105,6 @@ class DependencyChecker
     }
 
     /**
-     * Check if Node.js is installed.
-     */
-    public static function node(): DependencyCheck
-    {
-        $binary = self::findBinary(['node']);
-
-        if ($binary !== null) {
-            $version = self::getVersion($binary);
-
-            return new DependencyCheck(
-                'Node.js',
-                true,
-                $binary,
-                $version,
-                'Found at ' . $binary . ($version !== null ? sprintf(' (v%s)', $version) : ''),
-            );
-        }
-
-        return new DependencyCheck(
-            'Node.js',
-            false,
-            null,
-            null,
-            'Not found. Install from https://nodejs.org/ (required for Lighthouse features)',
-        );
-    }
-
-    /**
      * Check if Lighthouse CLI is installed.
      */
     public static function lighthouse(): DependencyCheck
@@ -192,67 +133,31 @@ class DependencyChecker
     }
 
     /**
-     * @return string[]
+     * Check if Node.js is installed.
      */
-    private static function unixChromePaths(): array
+    public static function node(): DependencyCheck
     {
-        $paths = [
-            // macOS
-            '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-            '/Applications/Chromium.app/Contents/MacOS/Chromium',
-            '/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary',
-            // Linux common paths
-            '/usr/bin/google-chrome',
-            '/usr/bin/google-chrome-stable',
-            '/usr/bin/chromium',
-            '/usr/bin/chromium-browser',
-            '/usr/local/bin/chromium',
-            '/snap/bin/chromium',
-        ];
+        $binary = self::findBinary(['node']);
 
-        // Check CHROME_PATH env var
-        $envPath = getenv('CHROME_PATH');
+        if ($binary !== null) {
+            $version = self::getVersion($binary);
 
-        if ($envPath !== false && $envPath !== '') {
-            array_unshift($paths, $envPath);
+            return new DependencyCheck(
+                'Node.js',
+                true,
+                $binary,
+                $version,
+                'Found at ' . $binary . ($version !== null ? sprintf(' (v%s)', $version) : ''),
+            );
         }
 
-        return $paths;
-    }
-
-    /**
-     * @return string[]
-     */
-    private static function windowsChromePaths(): array
-    {
-        $paths = [];
-
-        // Check CHROME_PATH env var
-        $envPath = getenv('CHROME_PATH');
-
-        if ($envPath !== false && $envPath !== '') {
-            $paths[] = $envPath;
-        }
-
-        $prefixes = array_filter([
-            getenv('LOCALAPPDATA'),
-            getenv('PROGRAMFILES'),
-            getenv('PROGRAMFILES(X86)'),
-        ]);
-
-        $suffixes = [
-            'Google\\Chrome\\Application\\chrome.exe',
-            'Chromium\\Application\\chrome.exe',
-            'Google\\Chrome SxS\\Application\\chrome.exe',
-        ];
-
-        foreach ($prefixes as $prefix) {
-            foreach ($suffixes as $suffix) {
-                $paths[] = $prefix . '\\' . $suffix;
-            }
-        }
-
-        return $paths;
+        return new DependencyCheck(
+            'Node.js',
+            false,
+            null,
+            null,
+            'Not found. Install from https://nodejs.org/ (required for Lighthouse features)',
+        );
     }
 
     /**
@@ -325,5 +230,100 @@ class DependencyChecker
     private static function isWindows(): bool
     {
         return PHP_OS_FAMILY === 'Windows';
+    }
+
+    /**
+     * @return string[]
+     */
+    private static function unixChromePaths(): array
+    {
+        $paths = [
+            // macOS
+            '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+            '/Applications/Chromium.app/Contents/MacOS/Chromium',
+            '/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary',
+            // Linux common paths
+            '/usr/bin/google-chrome',
+            '/usr/bin/google-chrome-stable',
+            '/usr/bin/chromium',
+            '/usr/bin/chromium-browser',
+            '/usr/local/bin/chromium',
+            '/snap/bin/chromium',
+        ];
+
+        // Check CHROME_PATH env var
+        $envPath = getenv('CHROME_PATH');
+
+        if ($envPath !== false && $envPath !== '') {
+            array_unshift($paths, $envPath);
+        }
+
+        return $paths;
+    }
+
+    /**
+     * Check Chrome and ChromeDriver major versions match.
+     */
+    private static function versionCompatibility(DependencyCheck $chrome, DependencyCheck $chromeDriver): ?DependencyCheck
+    {
+        if (!$chrome->found || !$chromeDriver->found || $chrome->version === null || $chromeDriver->version === null) {
+            return null;
+        }
+
+        $chromeMajor = (int) explode('.', $chrome->version)[0];
+        $driverMajor = (int) explode('.', $chromeDriver->version)[0];
+
+        if ($chromeMajor === $driverMajor) {
+            return new DependencyCheck(
+                'Version Match',
+                true,
+                null,
+                null,
+                sprintf('Chrome (%d) and ChromeDriver (%d) major versions match', $chromeMajor, $driverMajor),
+            );
+        }
+
+        return new DependencyCheck(
+            'Version Match',
+            false,
+            null,
+            null,
+            sprintf('Chrome (%d) and ChromeDriver (%d) major versions differ. They must match.', $chromeMajor, $driverMajor),
+        );
+    }
+
+    /**
+     * @return string[]
+     */
+    private static function windowsChromePaths(): array
+    {
+        $paths = [];
+
+        // Check CHROME_PATH env var
+        $envPath = getenv('CHROME_PATH');
+
+        if ($envPath !== false && $envPath !== '') {
+            $paths[] = $envPath;
+        }
+
+        $prefixes = array_filter([
+            getenv('LOCALAPPDATA'),
+            getenv('PROGRAMFILES'),
+            getenv('PROGRAMFILES(X86)'),
+        ]);
+
+        $suffixes = [
+            'Google\\Chrome\\Application\\chrome.exe',
+            'Chromium\\Application\\chrome.exe',
+            'Google\\Chrome SxS\\Application\\chrome.exe',
+        ];
+
+        foreach ($prefixes as $prefix) {
+            foreach ($suffixes as $suffix) {
+                $paths[] = $prefix . '\\' . $suffix;
+            }
+        }
+
+        return $paths;
     }
 }

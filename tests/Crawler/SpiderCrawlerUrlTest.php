@@ -8,6 +8,7 @@ use Myerscode\Beacon\Crawler\CrawlConfig;
 use Myerscode\Beacon\Crawler\SpiderCrawler;
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
+use ReflectionClass;
 
 final class SpiderCrawlerUrlTest extends TestCase
 {
@@ -18,18 +19,102 @@ final class SpiderCrawlerUrlTest extends TestCase
         $this->spiderCrawler = new SpiderCrawler(new CrawlConfig(), $this->createStub(\Myerscode\Beacon\ChromeDriverManager::class));
 
         // Set the base properties via reflection to test URL methods
-        $reflectionClass = new \ReflectionClass($this->spiderCrawler);
+        $reflectionClass = new ReflectionClass($this->spiderCrawler);
 
         $reflectionClass->getProperty('baseScheme')->setValue($this->spiderCrawler, 'https');
         $reflectionClass->getProperty('baseHost')->setValue($this->spiderCrawler, 'example.com');
         $reflectionClass->getProperty('baseUrl')->setValue($this->spiderCrawler, 'https://example.com');
     }
 
-    private function resolveUrl(string $href, string $currentPage): string
+    public function testIsInternalDifferentDomain(): void
     {
-        $reflectionMethod = new ReflectionMethod($this->spiderCrawler, 'resolveUrl');
+        $this->assertFalse($this->isInternal('https://other.com/page'));
+    }
 
-        return $reflectionMethod->invoke($this->spiderCrawler, $href, $currentPage);
+    public function testIsInternalSameDomain(): void
+    {
+        $this->assertTrue($this->isInternal('https://example.com/page'));
+    }
+
+    public function testNormalizeUrlStripsFragment(): void
+    {
+        $this->assertSame(
+            'https://example.com/page',
+            $this->normalizeUrl('https://example.com/page#section'),
+        );
+    }
+
+    public function testNormalizeUrlStripsTrailingSlash(): void
+    {
+        $this->assertSame(
+            'https://example.com/page',
+            $this->normalizeUrl('https://example.com/page/'),
+        );
+    }
+
+    public function testResolveAbsoluteUrl(): void
+    {
+        $this->assertSame(
+            'https://example.com/about',
+            $this->resolveUrl('https://example.com/about', 'https://example.com/'),
+        );
+    }
+
+    public function testResolveIgnoresEmpty(): void
+    {
+        $this->assertSame('', $this->resolveUrl('', 'https://example.com/'));
+    }
+
+    public function testResolveIgnoresHashOnly(): void
+    {
+        $this->assertSame('', $this->resolveUrl('#section', 'https://example.com/'));
+    }
+
+    public function testResolveIgnoresJavascript(): void
+    {
+        $this->assertSame('', $this->resolveUrl('javascript:void(0)', 'https://example.com/'));
+    }
+
+    public function testResolveIgnoresMailto(): void
+    {
+        $this->assertSame('', $this->resolveUrl('mailto:test@example.com', 'https://example.com/'));
+    }
+
+    public function testResolveIgnoresTel(): void
+    {
+        $this->assertSame('', $this->resolveUrl('tel:+1234567890', 'https://example.com/'));
+    }
+
+    public function testResolveProtocolRelativeUrl(): void
+    {
+        $this->assertSame(
+            'https://cdn.example.com/file.js',
+            $this->resolveUrl('//cdn.example.com/file.js', 'https://example.com/'),
+        );
+    }
+
+    public function testResolveRelativeUrl(): void
+    {
+        $this->assertSame(
+            'https://example.com/blog/post',
+            $this->resolveUrl('post', 'https://example.com/blog/index'),
+        );
+    }
+
+    public function testResolveRootRelativeUrl(): void
+    {
+        $this->assertSame(
+            'https://example.com/about',
+            $this->resolveUrl('/about', 'https://example.com/page'),
+        );
+    }
+
+    public function testResolveStripsFragment(): void
+    {
+        $this->assertSame(
+            'https://example.com/page',
+            $this->resolveUrl('https://example.com/page#section', 'https://example.com/'),
+        );
     }
 
     private function isInternal(string $url): bool
@@ -46,94 +131,10 @@ final class SpiderCrawlerUrlTest extends TestCase
         return $reflectionMethod->invoke($this->spiderCrawler, $url);
     }
 
-    public function testResolveAbsoluteUrl(): void
+    private function resolveUrl(string $href, string $currentPage): string
     {
-        $this->assertSame(
-            'https://example.com/about',
-            $this->resolveUrl('https://example.com/about', 'https://example.com/'),
-        );
-    }
+        $reflectionMethod = new ReflectionMethod($this->spiderCrawler, 'resolveUrl');
 
-    public function testResolveRootRelativeUrl(): void
-    {
-        $this->assertSame(
-            'https://example.com/about',
-            $this->resolveUrl('/about', 'https://example.com/page'),
-        );
-    }
-
-    public function testResolveRelativeUrl(): void
-    {
-        $this->assertSame(
-            'https://example.com/blog/post',
-            $this->resolveUrl('post', 'https://example.com/blog/index'),
-        );
-    }
-
-    public function testResolveProtocolRelativeUrl(): void
-    {
-        $this->assertSame(
-            'https://cdn.example.com/file.js',
-            $this->resolveUrl('//cdn.example.com/file.js', 'https://example.com/'),
-        );
-    }
-
-    public function testResolveStripsFragment(): void
-    {
-        $this->assertSame(
-            'https://example.com/page',
-            $this->resolveUrl('https://example.com/page#section', 'https://example.com/'),
-        );
-    }
-
-    public function testResolveIgnoresMailto(): void
-    {
-        $this->assertSame('', $this->resolveUrl('mailto:test@example.com', 'https://example.com/'));
-    }
-
-    public function testResolveIgnoresTel(): void
-    {
-        $this->assertSame('', $this->resolveUrl('tel:+1234567890', 'https://example.com/'));
-    }
-
-    public function testResolveIgnoresJavascript(): void
-    {
-        $this->assertSame('', $this->resolveUrl('javascript:void(0)', 'https://example.com/'));
-    }
-
-    public function testResolveIgnoresHashOnly(): void
-    {
-        $this->assertSame('', $this->resolveUrl('#section', 'https://example.com/'));
-    }
-
-    public function testResolveIgnoresEmpty(): void
-    {
-        $this->assertSame('', $this->resolveUrl('', 'https://example.com/'));
-    }
-
-    public function testIsInternalSameDomain(): void
-    {
-        $this->assertTrue($this->isInternal('https://example.com/page'));
-    }
-
-    public function testIsInternalDifferentDomain(): void
-    {
-        $this->assertFalse($this->isInternal('https://other.com/page'));
-    }
-
-    public function testNormalizeUrlStripsTrailingSlash(): void
-    {
-        $this->assertSame(
-            'https://example.com/page',
-            $this->normalizeUrl('https://example.com/page/'),
-        );
-    }
-
-    public function testNormalizeUrlStripsFragment(): void
-    {
-        $this->assertSame(
-            'https://example.com/page',
-            $this->normalizeUrl('https://example.com/page#section'),
-        );
+        return $reflectionMethod->invoke($this->spiderCrawler, $href, $currentPage);
     }
 }

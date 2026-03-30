@@ -20,67 +20,11 @@ final class CrawlConfigTest extends TestCase
         $this->assertSame([], $crawlConfig->getExcludePatterns());
     }
 
-    public function testMaxDepth(): void
-    {
-        $crawlConfig = new CrawlConfig()->maxDepth(10);
-
-        $this->assertSame(10, $crawlConfig->getMaxDepth());
-    }
-
-    public function testMaxConcurrent(): void
-    {
-        $crawlConfig = new CrawlConfig()->maxConcurrent(3);
-
-        $this->assertSame(3, $crawlConfig->getMaxConcurrent());
-    }
-
-    public function testTimeout(): void
-    {
-        $crawlConfig = new CrawlConfig()->timeout(60);
-
-        $this->assertSame(60, $crawlConfig->getTimeout());
-    }
-
     public function testExcludePatterns(): void
     {
         $crawlConfig = new CrawlConfig()->exclude(['/admin', '/login']);
 
         $this->assertSame(['/admin', '/login'], $crawlConfig->getExcludePatterns());
-    }
-
-    public function testIsAllowedWithNoFilters(): void
-    {
-        $crawlConfig = new CrawlConfig();
-
-        $this->assertTrue($crawlConfig->isAllowed('https://example.com/page'));
-    }
-
-    public function testIsAllowedBlocksExcludedPatterns(): void
-    {
-        $crawlConfig = new CrawlConfig()->exclude(['/admin', '/login']);
-
-        $this->assertFalse($crawlConfig->isAllowed('https://example.com/admin/dashboard'));
-        $this->assertFalse($crawlConfig->isAllowed('https://example.com/login'));
-        $this->assertTrue($crawlConfig->isAllowed('https://example.com/about'));
-    }
-
-    public function testIsAllowedWithClosure(): void
-    {
-        $crawlConfig = new CrawlConfig()->shouldCrawl(
-            fn (string $url): bool => !str_contains($url, 'private'),
-        );
-
-        $this->assertFalse($crawlConfig->isAllowed('https://example.com/private/page'));
-        $this->assertTrue($crawlConfig->isAllowed('https://example.com/public/page'));
-    }
-
-    public function testIsAllowedExcludesTakesPrecedenceOverClosure(): void
-    {
-        $crawlConfig = new CrawlConfig()
-            ->exclude(['/blocked'])
-            ->shouldCrawl(fn (string $url): true => true);
-
-        $this->assertFalse($crawlConfig->isAllowed('https://example.com/blocked'));
     }
 
     public function testFluentChaining(): void
@@ -99,6 +43,66 @@ final class CrawlConfigTest extends TestCase
         $this->assertSame(['/admin'], $crawlConfig->getExcludePatterns());
     }
 
+    public function testIsAllowedBlocksExcludedPatterns(): void
+    {
+        $crawlConfig = new CrawlConfig()->exclude(['/admin', '/login']);
+
+        $this->assertFalse($crawlConfig->isAllowed('https://example.com/admin/dashboard'));
+        $this->assertFalse($crawlConfig->isAllowed('https://example.com/login'));
+        $this->assertTrue($crawlConfig->isAllowed('https://example.com/about'));
+    }
+
+    public function testIsAllowedExcludesTakesPrecedenceOverClosure(): void
+    {
+        $crawlConfig = new CrawlConfig()
+            ->exclude(['/blocked'])
+            ->shouldCrawl(fn (string $url): true => true);
+
+        $this->assertFalse($crawlConfig->isAllowed('https://example.com/blocked'));
+    }
+
+    public function testIsAllowedWithClosure(): void
+    {
+        $crawlConfig = new CrawlConfig()->shouldCrawl(
+            fn (string $url): bool => !str_contains($url, 'private'),
+        );
+
+        $this->assertFalse($crawlConfig->isAllowed('https://example.com/private/page'));
+        $this->assertTrue($crawlConfig->isAllowed('https://example.com/public/page'));
+    }
+
+    public function testIsAllowedWithNoFilters(): void
+    {
+        $crawlConfig = new CrawlConfig();
+
+        $this->assertTrue($crawlConfig->isAllowed('https://example.com/page'));
+    }
+
+    public function testMaxConcurrent(): void
+    {
+        $crawlConfig = new CrawlConfig()->maxConcurrent(3);
+
+        $this->assertSame(3, $crawlConfig->getMaxConcurrent());
+    }
+
+    public function testMaxDepth(): void
+    {
+        $crawlConfig = new CrawlConfig()->maxDepth(10);
+
+        $this->assertSame(10, $crawlConfig->getMaxDepth());
+    }
+
+    public function testNotifyCrawledDoesNothingWithoutCallback(): void
+    {
+        $crawlConfig = new CrawlConfig();
+        $crawlResult = new CrawlResult('https://example.com', true, 200, [], 0);
+
+        // Should not throw
+        $crawlConfig->notifyCrawled('https://example.com', $crawlResult);
+
+        $this->assertTrue(true);
+    }
+
     public function testOnCrawledCallbackIsFired(): void
     {
         $called = [];
@@ -113,14 +117,10 @@ final class CrawlConfigTest extends TestCase
         $this->assertSame(['https://example.com'], $called);
     }
 
-    public function testNotifyCrawledDoesNothingWithoutCallback(): void
+    public function testTimeout(): void
     {
-        $crawlConfig = new CrawlConfig();
-        $crawlResult = new CrawlResult('https://example.com', true, 200, [], 0);
+        $crawlConfig = new CrawlConfig()->timeout(60);
 
-        // Should not throw
-        $crawlConfig->notifyCrawled('https://example.com', $crawlResult);
-
-        $this->assertTrue(true);
+        $this->assertSame(60, $crawlConfig->getTimeout());
     }
 }

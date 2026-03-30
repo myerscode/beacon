@@ -26,7 +26,7 @@ if ($broken === []) {
     exit(0);
 }
 
-echo "Found " . count($broken) . " broken links:\n\n";
+echo 'Found ' . count($broken) . " broken links:\n\n";
 
 foreach ($broken as $url => $result) {
     echo "  [{$result->statusCode}] {$url}\n";

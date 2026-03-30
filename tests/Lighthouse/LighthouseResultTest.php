@@ -11,99 +11,6 @@ use PHPUnit\Framework\TestCase;
 
 final class LighthouseResultTest extends TestCase
 {
-    /**
-     * @return array<string, mixed>
-     */
-    private function sampleData(): array
-    {
-        return [
-            'categories' => [
-                'performance' => ['score' => 0.92],
-                'accessibility' => ['score' => 1.0],
-                'best-practices' => ['score' => 0.95],
-                'seo' => ['score' => 0.9],
-            ],
-            'audits' => [
-                'first-contentful-paint' => [
-                    'id' => 'first-contentful-paint',
-                    'title' => 'First Contentful Paint',
-                    'score' => 0.98,
-                    'numericValue' => 800,
-                    'displayValue' => '0.8 s',
-                ],
-                'largest-contentful-paint' => [
-                    'id' => 'largest-contentful-paint',
-                    'title' => 'Largest Contentful Paint',
-                    'score' => 0.85,
-                    'numericValue' => 1200,
-                    'displayValue' => '1.2 s',
-                ],
-                'color-contrast' => [
-                    'id' => 'color-contrast',
-                    'title' => 'Background and foreground colors have a sufficient contrast ratio',
-                    'score' => 1,
-                ],
-            ],
-        ];
-    }
-
-    public function testScoresReturnsAllCategories(): void
-    {
-        $lighthouseResult = new LighthouseResult($this->sampleData());
-
-        $scores = $lighthouseResult->scores();
-
-        $this->assertSame([
-            'performance'    => 92,
-            'accessibility'  => 100,
-            'best-practices' => 95,
-            'seo'            => 90,
-        ], $scores);
-    }
-
-    public function testScoresFiltersByCategory(): void
-    {
-        $lighthouseResult = new LighthouseResult($this->sampleData());
-
-        $scores = $lighthouseResult->scores(Category::Performance, Category::Seo);
-
-        $this->assertSame([
-            'performance' => 92,
-            'seo'         => 90,
-        ], $scores);
-    }
-
-    public function testScoresSingleCategory(): void
-    {
-        $lighthouseResult = new LighthouseResult($this->sampleData());
-
-        $scores = $lighthouseResult->scores(Category::Accessibility);
-
-        $this->assertSame(['accessibility' => 100], $scores);
-    }
-
-    public function testScoresHandlesNullScore(): void
-    {
-        $data = ['categories' => ['performance' => ['score' => null]]];
-        $lighthouseResult = new LighthouseResult($data);
-
-        $scores = $lighthouseResult->scores();
-
-        $this->assertSame(['performance' => null], $scores);
-    }
-
-    public function testAuditsReturnsAllWhenNoArgs(): void
-    {
-        $lighthouseResult = new LighthouseResult($this->sampleData());
-
-        $audits = $lighthouseResult->audits();
-
-        $this->assertCount(3, $audits);
-        $this->assertArrayHasKey('first-contentful-paint', $audits);
-        $this->assertArrayHasKey('largest-contentful-paint', $audits);
-        $this->assertArrayHasKey('color-contrast', $audits);
-    }
-
     public function testAuditsFiltersByEnum(): void
     {
         $lighthouseResult = new LighthouseResult($this->sampleData());
@@ -147,6 +54,18 @@ final class LighthouseResultTest extends TestCase
         $this->assertArrayHasKey('color-contrast', $audits);
     }
 
+    public function testAuditsReturnsAllWhenNoArgs(): void
+    {
+        $lighthouseResult = new LighthouseResult($this->sampleData());
+
+        $audits = $lighthouseResult->audits();
+
+        $this->assertCount(3, $audits);
+        $this->assertArrayHasKey('first-contentful-paint', $audits);
+        $this->assertArrayHasKey('largest-contentful-paint', $audits);
+        $this->assertArrayHasKey('color-contrast', $audits);
+    }
+
     public function testAuditsReturnsEmptyForUnknown(): void
     {
         $lighthouseResult = new LighthouseResult($this->sampleData());
@@ -154,6 +73,13 @@ final class LighthouseResultTest extends TestCase
         $audits = $lighthouseResult->audits('nonexistent-audit');
 
         $this->assertSame([], $audits);
+    }
+
+    public function testAuditsWithEmptyData(): void
+    {
+        $lighthouseResult = new LighthouseResult([]);
+
+        $this->assertSame([], $lighthouseResult->audits());
     }
 
     public function testRawReturnsFullData(): void
@@ -182,17 +108,90 @@ final class LighthouseResultTest extends TestCase
         unlink($path);
     }
 
+    public function testScoresFiltersByCategory(): void
+    {
+        $lighthouseResult = new LighthouseResult($this->sampleData());
+
+        $scores = $lighthouseResult->scores(Category::Performance, Category::Seo);
+
+        $this->assertSame([
+            'performance' => 92,
+            'seo'         => 90,
+        ], $scores);
+    }
+
+    public function testScoresHandlesNullScore(): void
+    {
+        $data = ['categories' => ['performance' => ['score' => null]]];
+        $lighthouseResult = new LighthouseResult($data);
+
+        $scores = $lighthouseResult->scores();
+
+        $this->assertSame(['performance' => null], $scores);
+    }
+
+    public function testScoresReturnsAllCategories(): void
+    {
+        $lighthouseResult = new LighthouseResult($this->sampleData());
+
+        $scores = $lighthouseResult->scores();
+
+        $this->assertSame([
+            'performance'    => 92,
+            'accessibility'  => 100,
+            'best-practices' => 95,
+            'seo'            => 90,
+        ], $scores);
+    }
+
+    public function testScoresSingleCategory(): void
+    {
+        $lighthouseResult = new LighthouseResult($this->sampleData());
+
+        $scores = $lighthouseResult->scores(Category::Accessibility);
+
+        $this->assertSame(['accessibility' => 100], $scores);
+    }
+
     public function testScoresWithEmptyCategories(): void
     {
         $lighthouseResult = new LighthouseResult([]);
 
         $this->assertSame([], $lighthouseResult->scores());
     }
-
-    public function testAuditsWithEmptyData(): void
+    /**
+     * @return array<string, mixed>
+     */
+    private function sampleData(): array
     {
-        $lighthouseResult = new LighthouseResult([]);
-
-        $this->assertSame([], $lighthouseResult->audits());
+        return [
+            'categories' => [
+                'performance' => ['score' => 0.92],
+                'accessibility' => ['score' => 1.0],
+                'best-practices' => ['score' => 0.95],
+                'seo' => ['score' => 0.9],
+            ],
+            'audits' => [
+                'first-contentful-paint' => [
+                    'id' => 'first-contentful-paint',
+                    'title' => 'First Contentful Paint',
+                    'score' => 0.98,
+                    'numericValue' => 800,
+                    'displayValue' => '0.8 s',
+                ],
+                'largest-contentful-paint' => [
+                    'id' => 'largest-contentful-paint',
+                    'title' => 'Largest Contentful Paint',
+                    'score' => 0.85,
+                    'numericValue' => 1200,
+                    'displayValue' => '1.2 s',
+                ],
+                'color-contrast' => [
+                    'id' => 'color-contrast',
+                    'title' => 'Background and foreground colors have a sufficient contrast ratio',
+                    'score' => 1,
+                ],
+            ],
+        ];
     }
 }

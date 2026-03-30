@@ -8,34 +8,19 @@ use Closure;
 
 class CrawlConfig
 {
-    private int $maxDepth = 5;
-
-    private int $maxConcurrent = 5;
-
     /**
      * @var string[]
      */
     private array $excludePatterns = [];
 
-    private ?Closure $shouldCrawl = null;
-
-    private int $timeout = 30;
+    private int $maxConcurrent = 5;
+    private int $maxDepth = 5;
 
     private ?Closure $onCrawled = null;
 
-    public function maxDepth(int $depth): self
-    {
-        $this->maxDepth = $depth;
+    private ?Closure $shouldCrawl = null;
 
-        return $this;
-    }
-
-    public function maxConcurrent(int $concurrent): self
-    {
-        $this->maxConcurrent = $concurrent;
-
-        return $this;
-    }
+    private int $timeout = 30;
 
     /**
      * @param string[] $patterns URL patterns to exclude (matched with str_contains)
@@ -48,50 +33,11 @@ class CrawlConfig
     }
 
     /**
-     * Set a closure to evaluate whether a URL should be crawled.
-     * Receives the URL string, should return bool.
-     *
-     * @param Closure(string): bool $callback
+     * @return string[]
      */
-    public function shouldCrawl(Closure $callback): self
+    public function getExcludePatterns(): array
     {
-        $this->shouldCrawl = $callback;
-
-        return $this;
-    }
-
-    public function timeout(int $seconds): self
-    {
-        $this->timeout = $seconds;
-
-        return $this;
-    }
-
-    /**
-     * Set a callback to fire after each URL is crawled.
-     *
-     * @param Closure(string, CrawlResult): void $callback
-     */
-    public function onCrawled(Closure $callback): self
-    {
-        $this->onCrawled = $callback;
-
-        return $this;
-    }
-
-    /**
-     * Fire the onCrawled callback if set.
-     */
-    public function notifyCrawled(string $url, CrawlResult $crawlResult): void
-    {
-        if ($this->onCrawled instanceof Closure) {
-            ($this->onCrawled)($url, $crawlResult);
-        }
-    }
-
-    public function getMaxDepth(): int
-    {
-        return $this->maxDepth;
+        return $this->excludePatterns;
     }
 
     public function getMaxConcurrent(): int
@@ -99,12 +45,9 @@ class CrawlConfig
         return $this->maxConcurrent;
     }
 
-    /**
-     * @return string[]
-     */
-    public function getExcludePatterns(): array
+    public function getMaxDepth(): int
     {
-        return $this->excludePatterns;
+        return $this->maxDepth;
     }
 
     public function getTimeout(): int
@@ -128,5 +71,61 @@ class CrawlConfig
         }
 
         return true;
+    }
+
+    public function maxConcurrent(int $concurrent): self
+    {
+        $this->maxConcurrent = $concurrent;
+
+        return $this;
+    }
+
+    public function maxDepth(int $depth): self
+    {
+        $this->maxDepth = $depth;
+
+        return $this;
+    }
+
+    /**
+     * Fire the onCrawled callback if set.
+     */
+    public function notifyCrawled(string $url, CrawlResult $crawlResult): void
+    {
+        if ($this->onCrawled instanceof Closure) {
+            ($this->onCrawled)($url, $crawlResult);
+        }
+    }
+
+    /**
+     * Set a callback to fire after each URL is crawled.
+     *
+     * @param Closure(string, CrawlResult): void $callback
+     */
+    public function onCrawled(Closure $callback): self
+    {
+        $this->onCrawled = $callback;
+
+        return $this;
+    }
+
+    /**
+     * Set a closure to evaluate whether a URL should be crawled.
+     * Receives the URL string, should return bool.
+     *
+     * @param Closure(string): bool $callback
+     */
+    public function shouldCrawl(Closure $callback): self
+    {
+        $this->shouldCrawl = $callback;
+
+        return $this;
+    }
+
+    public function timeout(int $seconds): self
+    {
+        $this->timeout = $seconds;
+
+        return $this;
     }
 }

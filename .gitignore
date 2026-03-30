@@ -2,3 +2,5 @@
 /drivers/
 /.phpunit.cache/
 composer.lock
+coverage.xml
+coverage/

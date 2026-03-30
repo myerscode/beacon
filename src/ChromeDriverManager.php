@@ -6,7 +6,6 @@ namespace Myerscode\Beacon;
 
 use Facebook\WebDriver\Chrome\ChromeOptions;
 use Facebook\WebDriver\Remote\DesiredCapabilities;
-use Facebook\WebDriver\Remote\RemoteWebDriver;
 use RuntimeException;
 use Symfony\Component\Panther\Client;
 use Symfony\Component\Process\ExecutableFinder;
@@ -15,16 +14,15 @@ use Throwable;
 
 class ChromeDriverManager
 {
-    private ?Process $process = null;
-
-    private readonly int $port;
-
-    private string $host = '127.0.0.1';
-
     /**
      * @var Client[]
      */
     private array $clients = [];
+
+    private string $host = '127.0.0.1';
+
+    private readonly int $port;
+    private ?Process $process = null;
 
     /**
      * @param string[] $chromeArguments
@@ -41,6 +39,11 @@ class ChromeDriverManager
         $this->process->start();
 
         $this->waitUntilReady();
+    }
+
+    public function __destruct()
+    {
+        $this->quit();
     }
 
     /**
@@ -100,18 +103,13 @@ class ChromeDriverManager
         }
     }
 
-    public function __destruct()
-    {
-        $this->quit();
-    }
-
     private function findBinary(): string
     {
         $binary = new ExecutableFinder()->find('chromedriver', null, ['./drivers']);
 
         if ($binary === null) {
             throw new RuntimeException(
-                '"chromedriver" binary not found. Run "vendor/bin/bdi detect drivers" to install it.'
+                '"chromedriver" binary not found. Run "vendor/bin/bdi detect drivers" to install it.',
             );
         }
 
