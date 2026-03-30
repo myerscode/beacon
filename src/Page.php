@@ -104,6 +104,34 @@ class Page
     }
 
     /**
+     * Get all links found on the page.
+     *
+     * @return string[]
+     */
+    public function links(): array
+    {
+        $html = $this->source();
+
+        if (!preg_match_all('/<a\s[^>]*href=["\']([^"\']*)["\'][^>]*>/i', $html, $matches)) {
+            return [];
+        }
+
+        $links = [];
+
+        foreach ($matches[1] as $href) {
+            $href = trim($href);
+
+            if ($href === '' || str_starts_with($href, '#') || str_starts_with($href, 'javascript:')) {
+                continue;
+            }
+
+            $links[] = $href;
+        }
+
+        return array_values(array_unique($links));
+    }
+
+    /**
      * Get Lighthouse category scores. No args = all categories.
      *
      * @return array<string, int|null>

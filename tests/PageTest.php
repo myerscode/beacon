@@ -197,6 +197,52 @@ final class PageTest extends TestCase
 
         $this->assertSame('https://example.com', $page->url());
     }
+
+    public function testLinksReturnsAllLinks(): void
+    {
+        $client = $this->createClientStub();
+        $client->method('getPageSource')->willReturn(
+            '<html><body><a href="/about">About</a><a href="/contact">Contact</a></body></html>',
+        );
+
+        $page = new Page($client, 'https://example.com');
+
+        $this->assertSame(['/about', '/contact'], $page->links());
+    }
+
+    public function testLinksDeduplicates(): void
+    {
+        $client = $this->createClientStub();
+        $client->method('getPageSource')->willReturn(
+            '<html><body><a href="/about">About</a><a href="/about">About Again</a></body></html>',
+        );
+
+        $page = new Page($client, 'https://example.com');
+
+        $this->assertSame(['/about'], $page->links());
+    }
+
+    public function testLinksSkipsFragmentsAndJavascript(): void
+    {
+        $client = $this->createClientStub();
+        $client->method('getPageSource')->willReturn(
+            '<html><body><a href="#top">Top</a><a href="javascript:void(0)">JS</a><a href="/real">Real</a></body></html>',
+        );
+
+        $page = new Page($client, 'https://example.com');
+
+        $this->assertSame(['/real'], $page->links());
+    }
+
+    public function testLinksReturnsEmptyForNoLinks(): void
+    {
+        $client = $this->createClientStub();
+        $client->method('getPageSource')->willReturn('<html><body><p>No links</p></body></html>');
+
+        $page = new Page($client, 'https://example.com');
+
+        $this->assertSame([], $page->links());
+    }
     private function createClientStub(): ClientInterface
     {
         return $this->createStub(ClientInterface::class);
