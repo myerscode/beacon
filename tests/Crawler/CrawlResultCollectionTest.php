@@ -140,4 +140,51 @@ final class CrawlResultCollectionTest extends TestCase
         $this->assertCount(1, $crawlResultCollection->withStatus(200));
         $this->assertCount(1, $crawlResultCollection->withStatus(404));
     }
+
+    public function testToArrayReturnsPlainArray(): void
+    {
+        $crawlResultCollection = new CrawlResultCollection();
+
+        $crawlResultCollection->add(new CrawlResult('https://example.com', true, 200, [], 0));
+        $crawlResultCollection->add(new CrawlResult('https://other.com', false, null, ['https://example.com'], 1));
+
+        $array = $crawlResultCollection->toArray();
+
+        $this->assertCount(2, $array);
+        $this->assertSame('https://example.com', $array[0]['url']);
+        $this->assertTrue($array[0]['internal']);
+        $this->assertSame(200, $array[0]['statusCode']);
+        $this->assertSame('https://other.com', $array[1]['url']);
+        $this->assertFalse($array[1]['internal']);
+        $this->assertNull($array[1]['statusCode']);
+        $this->assertSame(['https://example.com'], $array[1]['linkedFrom']);
+    }
+
+    public function testToJsonReturnsValidJson(): void
+    {
+        $crawlResultCollection = new CrawlResultCollection();
+
+        $crawlResultCollection->add(new CrawlResult('https://example.com', true, 200, [], 0));
+
+        $json    = $crawlResultCollection->toJson();
+        $decoded = json_decode($json, true);
+
+        $this->assertIsArray($decoded);
+        $this->assertCount(1, $decoded);
+        $this->assertSame('https://example.com', $decoded[0]['url']);
+    }
+
+    public function testToArrayEmptyCollection(): void
+    {
+        $crawlResultCollection = new CrawlResultCollection();
+
+        $this->assertSame([], $crawlResultCollection->toArray());
+    }
+
+    public function testToJsonEmptyCollection(): void
+    {
+        $crawlResultCollection = new CrawlResultCollection();
+
+        $this->assertSame('[]', $crawlResultCollection->toJson());
+    }
 }

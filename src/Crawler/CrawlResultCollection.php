@@ -115,4 +115,31 @@ class CrawlResultCollection implements Countable, IteratorAggregate
     {
         return array_filter($this->results, fn (CrawlResult $crawlResult): bool => $crawlResult->statusCode === $statusCode);
     }
+
+    /**
+     * Convert all results to a plain array.
+     *
+     * @return array<int, array{url: string, internal: bool, statusCode: int|null, linkedFrom: string[], depth: int}>
+     */
+    public function toArray(): array
+    {
+        return array_values(array_map(
+            fn (CrawlResult $crawlResult): array => [
+                'url'        => $crawlResult->url,
+                'internal'   => $crawlResult->internal,
+                'statusCode' => $crawlResult->statusCode,
+                'linkedFrom' => $crawlResult->linkedFrom,
+                'depth'      => $crawlResult->depth,
+            ],
+            $this->results,
+        ));
+    }
+
+    /**
+     * Convert all results to a JSON string.
+     */
+    public function toJson(int $flags = JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES): string
+    {
+        return json_encode($this->toArray(), $flags | JSON_THROW_ON_ERROR);
+    }
 }
