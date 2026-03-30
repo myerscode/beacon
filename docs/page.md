@@ -18,9 +18,26 @@ $title = $page->title();
 
 // Current URL (after redirects)
 $url = $page->currentUrl();
+
+// HTTP status code
+$status = $page->statusCode();
 ```
 
-## Screenshots
+## Links and Meta
+
+```php
+$page = beacon()->visit('https://example.com');
+
+// All unique links found on the page
+$links = $page->links();
+// ['/about', '/contact', 'https://external.com']
+
+// All meta tags as a keyed array
+$meta = $page->meta();
+// ['description' => 'A great site', 'og:title' => 'Example', 'og:type' => 'website']
+```
+
+## Screenshots and PDF
 
 ```php
 $page = beacon()->visit('https://example.com');
@@ -28,6 +45,9 @@ $page = beacon()->visit('https://example.com');
 // Save a screenshot — returns $page so you can chain
 $page->screenshot('/tmp/homepage.png')
      ->screenshot('/tmp/homepage-2.png');
+
+// Save as PDF
+$page->pdf('/tmp/homepage.pdf');
 ```
 
 ## Querying Elements
@@ -65,9 +85,18 @@ $crawler = $page->crawler();
 | `body(): string` | Inner HTML of `<body>` |
 | `title(): string` | Page title |
 | `currentUrl(): string` | Current URL after redirects |
+| `statusCode(): int` | HTTP status code |
+| `links(): string[]` | All unique links on the page |
+| `meta(): array` | All meta tags as keyed array |
 | `screenshot(string $path): Page` | Save screenshot |
+| `pdf(string $path): Page` | Save page as PDF |
 | `text(string $selector = 'body'): string` | Get element text |
 | `attribute(string $selector, string $attr): ?string` | Get element attribute |
 | `has(string $selector): bool` | Check element exists |
+| `crawl(?CrawlConfig $config): CrawlResultCollection` | Spider crawl the site |
+| `lighthouse(Category ...$categories): array` | Lighthouse category scores |
+| `audit(Audit\|string ...$audits): array` | Lighthouse audit results |
+| `lighthouseResult(): LighthouseResult` | Full Lighthouse result object |
+| `withLighthouseRunner(LighthouseRunner $r): Page` | Set custom Lighthouse runner |
 | `crawler(): CrawlerInterface` | Get underlying Crawler |
 | `url(): string` | Original URL visited |

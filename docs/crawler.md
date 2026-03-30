@@ -1,6 +1,8 @@
 # Crawler
 
-Beacon includes a spider crawler that follows links across your site using Chrome to render each page (so JS-rendered links are captured). It tracks every URL it finds, whether internal or external, where each was linked from, and the HTTP status code.
+Beacon includes a spider crawler that follows links across your site using Chrome to render each page (so JS-rendered links are captured). It uses PHP Fibers for concurrent page loading — multiple Chrome sessions load pages in parallel, bounded by `maxConcurrent`.
+
+It tracks every URL it finds, whether internal or external, where each was linked from, and the HTTP status code.
 
 ## Basic Usage
 
@@ -27,7 +29,9 @@ $config = (new CrawlConfig())
     ->maxDepth(4)           // Only go 4 levels deep (default: 5)
     ->maxConcurrent(3)      // 3 Chrome instances in parallel (default: 5)
     ->timeout(15)           // Page load timeout in seconds (default: 30)
-    ->exclude(['/admin', '/logout', '.pdf'])  // Skip URLs containing these strings
+    ->maxRetries(2)         // Retry failed pages twice (default: 0)
+    ->requestDelay(500)     // 500ms delay between requests (default: 0)
+    ->exclude(['/admin', '/logout', '.pdf'])
     ->shouldCrawl(fn (string $url) => !str_contains($url, 'private'));
 
 $results = beacon()->visit('https://example.com')->crawl($config);
@@ -57,6 +61,41 @@ $config = (new CrawlConfig())->shouldCrawl(function (string $url): bool {
 });
 ```
 
+### Retries
+
+Failed page loads can be retried automatically:
+
+```php
+$config = (new CrawlConfig())->maxRetries(2);
+```
+
+Each retry yields to other Fibers so the crawl continues progressing while waiting.
+
+### Throttling
+
+Add a delay between requests to avoid overwhelming the target server:
+
+```php
+$config = (new CrawlConfig())->requestDelay(500); // 500ms between requests
+```
+
+## Live Callbacks
+
+Use `onCrawled` to get notified as each URL is processed:
+
+```php
+use Myerscode\Beacon\Crawler\CrawlResult;
+
+$config = (new CrawlConfig())
+    ->onCrawled(function (string $url, CrawlResult $result): void {
+        $type   = $result->internal ? 'internal' : 'external';
+        $status = $result->statusCode ?? '---';
+        echo "[{$status}] ({$type}) {$url}\n";
+    });
+
+beacon()->visit('https://example.com')->crawl($config);
+```
+
 ## Working with Results
 
 The `CrawlResultCollection` provides several ways to filter and query results:
@@ -84,6 +123,23 @@ $results->has('https://example.com/about');
 
 // Get a specific result
 $result = $results->get('https://example.com/about');
+```
+
+### Serialisation
+
+Export results for storage or reporting:
+
+```php
+$results = beacon()->visit('https://example.com')->crawl();
+
+// As a plain array
+$array = $results->toArray();
+
+// As JSON
+$json = $results->toJson();
+
+// Save to file
+file_put_contents('/tmp/crawl-results.json', $results->toJson());
 ```
 
 ### CrawlResult Properties
@@ -117,11 +173,12 @@ foreach ($results->broken() as $url => $result) {
 ## How It Works
 
 - Uses Panther (Chrome) to render each page, so JS-generated links are captured
+- PHP Fibers run page loads concurrently across multiple Chrome sessions
 - Resolves relative URLs, protocol-relative URLs, and root-relative URLs
 - Strips fragments (#) and normalises trailing slashes to avoid duplicates
 - Skips `mailto:`, `tel:`, `javascript:`, and empty hrefs
 - Records external links but doesn't follow them
-- Spins up multiple Chrome instances for concurrent crawling
+- Shares a single ChromeDriver process across all sessions
 
 ## API Reference
 
@@ -132,8 +189,11 @@ foreach ($results->broken() as $url => $result) {
 | `maxDepth(int $depth): self` | Max link depth to follow (default: 5) |
 | `maxConcurrent(int $n): self` | Chrome instances in pool (default: 5) |
 | `timeout(int $seconds): self` | Page load timeout (default: 30) |
+| `maxRetries(int $n): self` | Retry failed pages (default: 0) |
+| `requestDelay(int $ms): self` | Delay between requests in ms (default: 0) |
 | `exclude(array $patterns): self` | URL patterns to skip |
 | `shouldCrawl(Closure $fn): self` | Custom filter closure |
+| `onCrawled(Closure $fn): self` | Callback after each URL is processed |
 
 ### `CrawlResultCollection`
 
@@ -147,6 +207,8 @@ foreach ($results->broken() as $url => $result) {
 | `has(string $url): bool` | Check if URL exists |
 | `get(string $url): ?CrawlResult` | Get specific result |
 | `count(): int` | Total URL count |
+| `toArray(): array` | All results as plain array |
+| `toJson(int $flags): string` | All results as JSON string |
 
 ### `CrawlResult`
 

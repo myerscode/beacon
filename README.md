@@ -7,7 +7,7 @@
 
 # Beacon
 
-A fluent PHP wrapper around [Symfony Panther](https://github.com/symfony/panther) that makes interacting with web pages simple. Renders JavaScript-heavy pages (SPAs, React, Vue, etc.) and provides an easy API for grabbing source code, taking screenshots, interacting with page elements, and running Lighthouse audits.
+A fluent PHP wrapper around [Symfony Panther](https://github.com/symfony/panther) for web page content retrieval and site analysis. Renders JavaScript-heavy pages (SPAs, React, Vue, etc.) and provides an easy API for source code, screenshots, PDFs, meta tags, link extraction, Lighthouse audits, and concurrent site crawling.
 
 ## Requirements
 
@@ -21,36 +21,26 @@ A fluent PHP wrapper around [Symfony Panther](https://github.com/symfony/panther
 composer require myerscode/beacon
 ```
 
-After installing, run the driver installer to download a matching ChromeDriver:
-
-```bash
-vendor/bin/bdi detect drivers
-```
+ChromeDriver is installed automatically via `dbrekelmans/bdi` on `composer install`.
 
 ## Quick Start
-
-The fastest way to get going is with the `beacon()` helper:
 
 ```php
 // Get the fully rendered HTML of any page
 $html = beacon()->visit('https://example.com')->source();
 
-// Take a screenshot
-beacon()->visit('https://example.com')->screenshot('/tmp/example.png');
+// Take a screenshot or save as PDF
+beacon()->visit('https://example.com')->screenshot('/tmp/shot.png');
+beacon()->visit('https://example.com')->pdf('/tmp/page.pdf');
 
-// Get just the page title
-$title = beacon()->visit('https://example.com')->title();
+// Page info
+$title  = beacon()->visit('https://example.com')->title();
+$status = beacon()->visit('https://example.com')->statusCode();
+$links  = beacon()->visit('https://example.com')->links();
+$meta   = beacon()->visit('https://example.com')->meta();
 
-// Configure the browser inline
-$html = beacon(windowSize: [1920, 1080], waitTimeout: 15)
-    ->visit('https://example.com')
-    ->source();
-
-// Run a Lighthouse audit
+// Lighthouse audit
 $scores = beacon()->visit('https://example.com')->lighthouse();
-
-// Get specific audit details
-$fcp = beacon()->visit('https://example.com')->audit(Audit::FirstContentfulPaint);
 
 // Crawl the site for broken links
 $results = beacon()->visit('https://example.com')->crawl();
@@ -77,11 +67,24 @@ $page = $browser->visit('https://example.com');
 $browser->quit();
 ```
 
+## Dependency Check
+
+Verify all required dependencies are installed:
+
+```php
+use Myerscode\Beacon\Support\DependencyChecker;
+
+foreach (DependencyChecker::check() as $check) {
+    $icon = $check->ok() ? '✓' : '✗';
+    echo "{$icon} {$check->name}: {$check->message}\n";
+}
+```
+
 ## Documentation
 
-- [Page](docs/page.md) — content retrieval, screenshots, element querying
-- [Lighthouse](docs/lighthouse.md) — category scores, individual audits, configuration, saving reports
-- [Crawler](docs/crawler.md) — spider crawl, broken link detection, site mapping
+- [Page](docs/page.md) — content, screenshots, PDF, links, meta, status code
+- [Lighthouse](docs/lighthouse.md) — category scores, individual audits, configuration, reports
+- [Crawler](docs/crawler.md) — concurrent spider crawl, broken link detection, retries, throttling
 
 ## API Reference
 
@@ -102,7 +105,7 @@ Helper function. Creates and configures a Browser instance. Chain `->visit($url)
 | `visit(string $url): Page` | Navigate to URL, returns Page |
 | `quit(): void` | Close browser and clean up |
 
-See [Page API](docs/page.md#api-reference) and [Lighthouse API](docs/lighthouse.md#api-reference) for the full method reference.
+See [Page API](docs/page.md#api-reference), [Lighthouse API](docs/lighthouse.md#api-reference), and [Crawler API](docs/crawler.md#api-reference) for the full method reference.
 
 ## License
 
