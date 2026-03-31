@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Myerscode\Beacon\Tests\Crawler;
 
 use Myerscode\Beacon\ChromeDriverManager;
-use Myerscode\Beacon\Crawler\Crawler;
+use Myerscode\Beacon\Crawler\Spider;
 use Myerscode\Beacon\Crawler\CrawlConfig;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
@@ -13,11 +13,11 @@ use ReflectionMethod;
 
 final class CrawlerUrlTest extends TestCase
 {
-    private Crawler $crawler;
+    private Spider $crawler;
 
     protected function setUp(): void
     {
-        $this->crawler = new Crawler(new CrawlConfig(), $this->createStub(ChromeDriverManager::class));
+        $this->crawler = new Spider(new CrawlConfig(), $this->createStub(ChromeDriverManager::class));
 
         $reflectionClass = new ReflectionClass($this->crawler);
 

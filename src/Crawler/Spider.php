@@ -12,7 +12,7 @@ use Fiber;
 /**
  * @internal
  */
-class Crawler
+class Spider
 {
     private string $baseHost = '';
 

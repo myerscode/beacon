@@ -51,18 +51,22 @@ final class PageTest extends TestCase
 
     public function testBodyReturnsBodyHtml(): void
     {
-        $bodyCrawler = $this->createCrawlerStub();
-        $bodyCrawler->method('html')->willReturn('<p>Hello</p>');
-
-        $crawler = $this->createCrawlerStub();
-        $crawler->method('filter')->willReturn($bodyCrawler);
-
         $client = $this->createClientStub();
-        $client->method('getCrawler')->willReturn($crawler);
+        $client->method('getPageSource')->willReturn('<html><body><p>Hello</p></body></html>');
 
         $page = new Page($client, 'https://example.com');
 
         $this->assertSame('<p>Hello</p>', $page->body());
+    }
+
+    public function testBodyReturnsEmptyWhenNoBody(): void
+    {
+        $client = $this->createClientStub();
+        $client->method('getPageSource')->willReturn('<html><head></head></html>');
+
+        $page = new Page($client, 'https://example.com');
+
+        $this->assertSame('', $page->body());
     }
 
     public function testCrawlerReturnsUnderlyingCrawler(): void
@@ -158,6 +162,18 @@ final class PageTest extends TestCase
         $client = $this->createClientStub();
         $client->method('getPageSource')->willReturn(
             '<html><body><a href="#top">Top</a><a href="javascript:void(0)">JS</a><a href="/real">Real</a></body></html>',
+        );
+
+        $page = new Page($client, 'https://example.com');
+
+        $this->assertSame(['/real'], $page->links());
+    }
+
+    public function testLinksSkipsMailtoAndTel(): void
+    {
+        $client = $this->createClientStub();
+        $client->method('getPageSource')->willReturn(
+            '<html><body><a href="mailto:test@example.com">Email</a><a href="tel:+44123">Call</a><a href="/real">Real</a></body></html>',
         );
 
         $page = new Page($client, 'https://example.com');

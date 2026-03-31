@@ -1,14 +1,33 @@
 {
     "name": "myerscode/beacon",
-    "description": "A fluent wrapper around Symfony Panther for easy browser interaction, screenshots, and rendered source retrieval.",
+    "description": "A fluent PHP wrapper for web page content retrieval, screenshots, PDFs, Lighthouse audits, and concurrent site crawling using Chrome.",
+    "keywords": [
+        "browser",
+        "chrome",
+        "crawler",
+        "lighthouse",
+        "panther",
+        "pdf",
+        "screenshot",
+        "scraping",
+        "seo",
+        "spider",
+        "web-scraping",
+        "webdriver"
+    ],
     "type": "library",
     "license": "MIT",
     "authors": [
         {
-            "name": "Fred Myerscough",
-            "email": "fred@myerscode.com"
+          "name": "myerscode",
+          "email": "team@myerscode.com",
+          "homepage": "https://myerscode.com"
+        },
+        {
+          "name": "Fred Myerscough",
+          "email": "fred@myerscough.co.uk"
         }
-    ],
+      ],
     "require": {
         "php": "^8.5",
         "symfony/panther": "^2.4",

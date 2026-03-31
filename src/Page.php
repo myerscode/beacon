@@ -6,7 +6,7 @@ namespace Myerscode\Beacon;
 
 use Myerscode\Beacon\Crawler\CrawlConfig;
 use Myerscode\Beacon\Crawler\CrawlResultCollection;
-use Myerscode\Beacon\Crawler\Crawler;
+use Myerscode\Beacon\Crawler\Spider;
 use Myerscode\Beacon\Lighthouse\Audit;
 use Myerscode\Beacon\Lighthouse\Category;
 use Myerscode\Beacon\Lighthouse\LighthouseResult;
@@ -51,7 +51,13 @@ class Page
      */
     public function body(): string
     {
-        return $this->client->getCrawler()->filter('body')->html();
+        $html = $this->source();
+
+        if (preg_match('/<body[^>]*>(.*)<\/body>/is', $html, $matches)) {
+            return trim($matches[1]);
+        }
+
+        return '';
     }
 
     /**
@@ -70,7 +76,7 @@ class Page
             $driver    = $ownDriver;
         }
 
-        $crawler = new Crawler($crawlConfig, $driver);
+        $crawler = new Spider($crawlConfig, $driver);
 
         try {
             return $crawler->crawl($this->url, $this->source());
@@ -139,7 +145,12 @@ class Page
         foreach ($matches[1] as $href) {
             $href = trim($href);
 
-            if ($href === '' || str_starts_with($href, '#') || str_starts_with($href, 'javascript:')) {
+            if ($href === ''
+                || str_starts_with($href, '#')
+                || str_starts_with($href, 'javascript:')
+                || str_starts_with($href, 'mailto:')
+                || str_starts_with($href, 'tel:')
+            ) {
                 continue;
             }
 
