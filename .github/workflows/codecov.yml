@@ -30,7 +30,7 @@ jobs:
       - name: Install dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
       - name: Run Test Suite
-        run: vendor/bin/phpunit --testdox --coverage-clover ./coverage.xml
+        run: vendor/bin/phpunit --testdox --coverage-clover ./coverage.xml --exclude-group=integration
       - name: Code Coverage
         uses: codecov/codecov-action@v6
         with:

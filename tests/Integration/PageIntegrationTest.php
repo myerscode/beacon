@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Myerscode\Beacon\Tests\Integration;
 
 use Myerscode\Beacon\Browser;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * @group integration
  */
+#[Group('integration')]
 final class PageIntegrationTest extends IntegrationTestCase
 {
     private static ?Browser $browser = null;

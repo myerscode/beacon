@@ -7,10 +7,12 @@ namespace Myerscode\Beacon\Tests\Integration;
 use Myerscode\Beacon\Browser;
 use Myerscode\Beacon\Crawler\CrawlConfig;
 use Myerscode\Beacon\Crawler\CrawlResult;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * @group integration
  */
+#[Group('integration')]
 final class CrawlIntegrationTest extends IntegrationTestCase
 {
     private static ?Browser $browser = null;
