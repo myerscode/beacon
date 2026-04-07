@@ -28,6 +28,14 @@ class Browser
         $this->quit();
     }
 
+    /**
+     * Force cleanup of all active ChromeDriver instances.
+     */
+    public static function cleanup(): void
+    {
+        ChromeDriverManager::cleanup();
+    }
+
     public static function create(): self
     {
         return new self();

@@ -15,13 +15,23 @@ use Throwable;
 class ChromeDriverManager
 {
     /**
+     * @var self[]
+     */
+    private static array $instances = [];
+
+    private static bool $shutdownRegistered = false;
+
+    /**
      * @var Client[]
      */
     private array $clients = [];
 
     private string $host = '127.0.0.1';
 
+    private ?int $pid = null;
+
     private readonly int $port;
+
     private ?Process $process = null;
 
     /**
@@ -31,13 +41,15 @@ class ChromeDriverManager
         private readonly array $chromeArguments = ['--headless=new', '--disable-gpu', '--no-sandbox', '--disable-dev-shm-usage'],
         ?string $chromeDriverBinary = null,
     ) {
-        $this->port            = random_int(10000, 60000);
+        $this->port = random_int(10000, 60000);
 
         $binary = $chromeDriverBinary ?? $this->findBinary();
 
         $this->process = new Process([$binary, '--port=' . $this->port], null, null, null, null);
         $this->process->start();
+        $this->pid = $this->process->getPid();
 
+        $this->registerForCleanup();
         $this->waitUntilReady();
     }
 
@@ -47,11 +59,28 @@ class ChromeDriverManager
     }
 
     /**
+     * Force cleanup of all active ChromeDriver instances.
+     * Call this in your own shutdown handlers if needed.
+     */
+    public static function cleanup(): void
+    {
+        foreach (self::$instances as $instance) {
+            try {
+                $instance->quit();
+            } catch (Throwable) {
+                // Best effort
+            }
+        }
+
+        self::$instances = [];
+    }
+
+    /**
      * Create a new Panther Client session on this driver.
      */
     public function createClient(): Client
     {
-        $url          = sprintf('http://%s:%d', $this->host, $this->port);
+        $url                 = sprintf('http://%s:%d', $this->host, $this->port);
         $desiredCapabilities = DesiredCapabilities::chrome();
 
         $chromeOptions = new ChromeOptions();
@@ -99,8 +128,18 @@ class ChromeDriverManager
 
         if ($this->process instanceof Process && $this->process->isRunning()) {
             $this->process->stop();
-            $this->process = null;
         }
+
+        $this->process = null;
+
+        // Last resort — kill by PID if the process is still alive
+        $this->killByPid();
+
+        // Remove from the global registry
+        self::$instances = array_filter(
+            self::$instances,
+            fn (self $instance): bool => $instance !== $this,
+        );
     }
 
     private function findBinary(): string
@@ -114,6 +153,48 @@ class ChromeDriverManager
         }
 
         return $binary;
+    }
+
+    private function killByPid(): void
+    {
+        if ($this->pid === null) {
+            return;
+        }
+
+        // Check if the process is still running and kill it
+        if (PHP_OS_FAMILY === 'Windows') {
+            @exec(sprintf('taskkill /F /PID %d 2>NUL', $this->pid));
+        } else {
+            @exec(sprintf('kill -9 %d 2>/dev/null', $this->pid));
+        }
+
+        $this->pid = null;
+    }
+
+    private function registerForCleanup(): void
+    {
+        self::$instances[] = $this;
+
+        if (!self::$shutdownRegistered) {
+            self::$shutdownRegistered = true;
+
+            register_shutdown_function(static function (): void {
+                self::cleanup();
+            });
+
+            // Handle SIGINT (Ctrl+C) and SIGTERM gracefully
+            if (function_exists('pcntl_signal')) {
+                pcntl_signal(SIGINT, static function (): void {
+                    self::cleanup();
+                    exit(130);
+                });
+
+                pcntl_signal(SIGTERM, static function (): void {
+                    self::cleanup();
+                    exit(143);
+                });
+            }
+        }
     }
 
     private function waitUntilReady(): void
