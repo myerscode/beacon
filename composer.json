@@ -63,12 +63,12 @@
         "post-update-cmd": [
             "@driver:update"
         ],
-        "driver:install":     "beacon-driver install",
-        "driver:update":      "beacon-driver update",
-        "driver:clean":       "beacon-driver clean",
-        "lighthouse:install": "beacon-lighthouse install",
-        "lighthouse:update":  "beacon-lighthouse update",
-        "lighthouse:remove":  "beacon-lighthouse remove",
+        "driver:install":     "@php bin/beacon-driver install",
+        "driver:update":      "@php bin/beacon-driver update",
+        "driver:clean":       "@php bin/beacon-driver clean",
+        "lighthouse:install": "@php bin/beacon-lighthouse install",
+        "lighthouse:update":  "@php bin/beacon-lighthouse update",
+        "lighthouse:remove":  "@php bin/beacon-lighthouse remove",
         "lint":               "vendor/bin/pint",
         "analyse":            "vendor/bin/phpstan analyse",
         "tests":              "vendor/bin/phpunit --testdox --no-coverage --colors=always",
