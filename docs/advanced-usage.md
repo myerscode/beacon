@@ -33,9 +33,45 @@ $browser->quit();
 | `visit(string $url): Page` | Navigate to URL, returns Page |
 | `quit(): void` | Close browser and clean up |
 
-## Dependency Check
+## Managing Dependencies
 
-Verify all required dependencies are installed on the system:
+Beacon includes built-in commands for managing ChromeDriver and the Lighthouse CLI so you don't need any external tools.
+
+### ChromeDriver
+
+ChromeDriver is installed automatically on `composer install` and updated on `composer update`. It detects your installed Chrome version and downloads the matching driver for your platform.
+
+You can also run the commands manually:
+
+```bash
+# Install ChromeDriver matching your Chrome version (skips if already up to date)
+composer run driver:install
+
+# Force re-download (useful after a Chrome update)
+composer run driver:update
+
+# Remove the ChromeDriver binary from ./drivers
+composer run driver:clean
+```
+
+### Lighthouse CLI
+
+Lighthouse is optional — only needed if you use `lighthouse()` or `audit()`. You can install it yourself with npm, or use the Beacon commands:
+
+```bash
+# Install Lighthouse CLI globally via npm
+composer run lighthouse:install
+
+# Update to the latest version
+composer run lighthouse:update
+
+# Remove the global installation
+composer run lighthouse:remove
+```
+
+### Dependency Check
+
+Verify all required dependencies are present on the system:
 
 ```php
 use Myerscode\Beacon\Support\DependencyChecker;
@@ -61,7 +97,7 @@ $node   = DependencyChecker::node();
 $lh     = DependencyChecker::lighthouse();
 
 if (!$chrome->ok()) {
-    echo $chrome->message; // Install instructions
+    echo $chrome->message; // Includes install instructions
 }
 ```
 

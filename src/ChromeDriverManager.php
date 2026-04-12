@@ -148,7 +148,7 @@ class ChromeDriverManager
 
         if ($binary === null) {
             throw new RuntimeException(
-                '"chromedriver" binary not found. Run "vendor/bin/bdi detect drivers" to install it.',
+                '"chromedriver" binary not found. Run "composer run driver:install" to install it.',
             );
         }
 

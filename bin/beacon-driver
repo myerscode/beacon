@@ -1,0 +1,21 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+require __DIR__ . '/../vendor/autoload.php';
+
+use Myerscode\Beacon\ChromeDriverInstaller;
+
+$command = $argv[1] ?? 'install';
+
+match ($command) {
+    'install' => print(ChromeDriverInstaller::install()->output()),
+    'update'  => print(ChromeDriverInstaller::update()->output()),
+    'clean'   => print(ChromeDriverInstaller::clean()->output()),
+    default   => (static function () use ($command): never {
+        echo sprintf("Unknown command: %s\n", $command);
+        echo "Usage: beacon-driver [install|update|clean]\n";
+        exit(1);
+    })(),
+};

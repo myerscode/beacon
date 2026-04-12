@@ -100,7 +100,7 @@ class DependencyChecker
             false,
             null,
             null,
-            'Not found. Run "vendor/bin/bdi detect drivers" to install it.',
+            'Not found. Run "composer run driver:install" to install it.',
         );
     }
 
@@ -128,7 +128,7 @@ class DependencyChecker
             false,
             null,
             null,
-            'Not found. Install via: npm install -g lighthouse (required for Lighthouse features)',
+            'Not found. Run "composer run lighthouse:install" to install it.',
         );
     }
 

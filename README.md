@@ -11,9 +11,10 @@ A fluent PHP wrapper around [Symfony Panther](https://github.com/symfony/panther
 
 ## Requirements
 
-- PHP 8.5+
+- PHP 8.5 or higher
 - Chrome/Chromium browser installed
-- Node.js 16+ and [Lighthouse CLI](https://www.npmjs.com/package/lighthouse) (only required for Lighthouse features)
+- Node.js 16 or higher (only required for Lighthouse features)
+- [Lighthouse CLI](https://www.npmjs.com/package/lighthouse) (only required for Lighthouse features)
 
 ## Installation
 
@@ -21,7 +22,7 @@ A fluent PHP wrapper around [Symfony Panther](https://github.com/symfony/panther
 composer require myerscode/beacon
 ```
 
-ChromeDriver is installed automatically via `dbrekelmans/bdi` on `composer install`.
+ChromeDriver is installed automatically on `composer install` — Beacon detects your Chrome version and downloads the matching driver for your platform. See [Managing Dependencies](docs/advanced-usage.md#managing-dependencies) for manual install, update, and clean commands.
 
 ## Quick Start
 
@@ -52,8 +53,17 @@ $broken  = $results->broken();
 - [Page](docs/page.md) — content, screenshots, PDF, links, meta, status code
 - [Lighthouse](docs/lighthouse.md) — category scores, individual audits, configuration, reports
 - [Crawler](docs/crawler.md) — concurrent spider crawl, broken link detection, retries, throttling
-- [Advanced Usage](docs/advanced-usage.md) — browser configuration, dependency checking
+- [Advanced Usage](docs/advanced-usage.md) — browser configuration, dependency management
+- [CI/CD](docs/ci-cd.md) — GitHub Actions, GitLab CI, and other pipeline setups
+
+## Issues
+
+Bug reports and feature requests can be submitted on the [Github Issue Tracker](https://github.com/myerscode/beacon/issues).
+
+## Contributing
+
+Contributions are welcome! Please see [contributing.md](https://github.com/myerscode/docs/blob/master/contributing.md) for guidelines on how to contribute to this project.
 
 ## License
 
-MIT
+The MIT License (MIT). Please see [License File](LICENSE) for more information.

@@ -5,7 +5,21 @@ Beacon can run [Google Lighthouse](https://github.com/GoogleChrome/lighthouse) a
 ## Requirements
 
 - Node.js 16+
-- Lighthouse CLI: `npm install -g lighthouse`
+- Lighthouse CLI
+
+Install it yourself:
+
+```bash
+npm install -g lighthouse
+```
+
+Or let Beacon manage it for you:
+
+```bash
+composer run lighthouse:install
+```
+
+See [Managing Dependencies](advanced-usage.md#managing-dependencies) for the full set of install, update, and remove commands.
 
 ## Category Scores
 
