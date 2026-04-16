@@ -6,22 +6,23 @@ namespace Myerscode\Beacon\Support;
 
 class DependencyChecker
 {
+
     /**
      * Run all dependency checks.
      *
      * @return DependencyCheck[]
      */
-    public static function check(): array
+    public function check(): array
     {
-        $chrome       = self::chrome();
-        $chromeDriver = self::chromeDriver();
+        $chrome       = $this->chrome();
+        $chromeDriver = $this->chromeDriver();
 
         $checks = [
             $chrome,
             $chromeDriver,
-            self::versionCompatibility($chrome, $chromeDriver),
-            self::node(),
-            self::lighthouse(),
+            $this->versionCompatibility($chrome, $chromeDriver),
+            $this->node(),
+            $this->lighthouse(),
         ];
 
         return array_filter($checks);
@@ -30,15 +31,15 @@ class DependencyChecker
     /**
      * Check if Chrome or Chromium is installed.
      */
-    public static function chrome(): DependencyCheck
+    public function chrome(): DependencyCheck
     {
-        $candidates = self::isWindows()
-            ? self::windowsChromePaths()
-            : self::unixChromePaths();
+        $candidates = $this->isWindows()
+            ? $this->windowsChromePaths()
+            : $this->unixChromePaths();
 
         foreach ($candidates as $candidate) {
-            if (self::isExecutable($candidate)) {
-                $version = self::getVersion($candidate);
+            if ($this->isExecutable($candidate)) {
+                $version = $this->getVersion($candidate);
 
                 return new DependencyCheck(
                     'Chrome/Chromium',
@@ -51,10 +52,10 @@ class DependencyChecker
         }
 
         // Try finding via which/where
-        $binary = self::findBinary(['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser', 'chrome']);
+        $binary = $this->findBinary(['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser', 'chrome']);
 
         if ($binary !== null) {
-            $version = self::getVersion($binary);
+            $version = $this->getVersion($binary);
 
             return new DependencyCheck(
                 'Chrome/Chromium',
@@ -70,7 +71,7 @@ class DependencyChecker
             false,
             null,
             null,
-            self::isWindows()
+            $this->isWindows()
                 ? 'Not found. Install Google Chrome from https://www.google.com/chrome/'
                 : 'Not found. Install via: brew install --cask google-chrome (macOS) or apt install chromium-browser (Linux)',
         );
@@ -79,12 +80,12 @@ class DependencyChecker
     /**
      * Check if ChromeDriver is installed.
      */
-    public static function chromeDriver(): DependencyCheck
+    public function chromeDriver(): DependencyCheck
     {
-        $binary = self::findBinary(['chromedriver'], ['./drivers']);
+        $binary = $this->findBinary(['chromedriver'], ['./drivers']);
 
         if ($binary !== null) {
-            $version = self::getVersion($binary);
+            $version = $this->getVersion($binary);
 
             return new DependencyCheck(
                 'ChromeDriver',
@@ -107,12 +108,12 @@ class DependencyChecker
     /**
      * Check if Lighthouse CLI is installed.
      */
-    public static function lighthouse(): DependencyCheck
+    public function lighthouse(): DependencyCheck
     {
-        $binary = self::findBinary(['lighthouse']);
+        $binary = $this->findBinary(['lighthouse']);
 
         if ($binary !== null) {
-            $version = self::getVersion($binary);
+            $version = $this->getVersion($binary);
 
             return new DependencyCheck(
                 'Lighthouse',
@@ -135,12 +136,12 @@ class DependencyChecker
     /**
      * Check if Node.js is installed.
      */
-    public static function node(): DependencyCheck
+    public function node(): DependencyCheck
     {
-        $binary = self::findBinary(['node']);
+        $binary = $this->findBinary(['node']);
 
         if ($binary !== null) {
-            $version = self::getVersion($binary);
+            $version = $this->getVersion($binary);
 
             return new DependencyCheck(
                 'Node.js',
@@ -166,20 +167,20 @@ class DependencyChecker
      * @param string[] $names
      * @param string[] $extraPaths
      */
-    private static function findBinary(array $names, array $extraPaths = []): ?string
+    private function findBinary(array $names, array $extraPaths = []): ?string
     {
         // Check extra paths first (e.g. ./drivers)
         foreach ($extraPaths as $extraPath) {
             foreach ($names as $name) {
                 $path = rtrim($extraPath, '/\\') . DIRECTORY_SEPARATOR . $name;
 
-                if (self::isExecutable($path)) {
+                if ($this->isExecutable($path)) {
                     return realpath($path) ?: $path;
                 }
             }
         }
 
-        $command = self::isWindows() ? 'where' : 'which';
+        $command = $this->isWindows() ? 'where' : 'which';
 
         foreach ($names as $name) {
             $output = [];
@@ -198,7 +199,7 @@ class DependencyChecker
     /**
      * Get the version string from a binary.
      */
-    private static function getVersion(string $binary): ?string
+    private function getVersion(string $binary): ?string
     {
         $output = [];
         $code   = 0;
@@ -218,16 +219,16 @@ class DependencyChecker
         return null;
     }
 
-    private static function isExecutable(string $path): bool
+    private function isExecutable(string $path): bool
     {
-        if (self::isWindows()) {
+        if ($this->isWindows()) {
             return file_exists($path);
         }
 
         return is_executable($path);
     }
 
-    private static function isWindows(): bool
+    private function isWindows(): bool
     {
         return PHP_OS_FAMILY === 'Windows';
     }
@@ -235,7 +236,7 @@ class DependencyChecker
     /**
      * @return string[]
      */
-    private static function unixChromePaths(): array
+    private function unixChromePaths(): array
     {
         $paths = [
             // macOS
@@ -264,7 +265,7 @@ class DependencyChecker
     /**
      * Check Chrome and ChromeDriver major versions match.
      */
-    private static function versionCompatibility(DependencyCheck $chrome, DependencyCheck $chromeDriver): ?DependencyCheck
+    private function versionCompatibility(DependencyCheck $chrome, DependencyCheck $chromeDriver): ?DependencyCheck
     {
         if (!$chrome->found || !$chromeDriver->found || $chrome->version === null || $chromeDriver->version === null) {
             return null;
@@ -295,7 +296,7 @@ class DependencyChecker
     /**
      * @return string[]
      */
-    private static function windowsChromePaths(): array
+    private function windowsChromePaths(): array
     {
         $paths = [];
 

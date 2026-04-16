@@ -76,7 +76,7 @@ Verify all required dependencies are present on the system:
 ```php
 use Myerscode\Beacon\Support\DependencyChecker;
 
-foreach (DependencyChecker::check() as $check) {
+foreach ((new DependencyChecker())->check() as $check) {
     $icon = $check->ok() ? '✓' : '✗';
     echo "{$icon} {$check->name}: {$check->message}\n";
 }
@@ -91,10 +91,12 @@ The checker validates:
 You can also check individual dependencies:
 
 ```php
-$chrome = DependencyChecker::chrome();
-$driver = DependencyChecker::chromeDriver();
-$node   = DependencyChecker::node();
-$lh     = DependencyChecker::lighthouse();
+$checker = new DependencyChecker();
+
+$chrome = $checker->chrome();
+$driver = $checker->chromeDriver();
+$node   = $checker->node();
+$lh     = $checker->lighthouse();
 
 if (!$chrome->ok()) {
     echo $chrome->message; // Includes install instructions

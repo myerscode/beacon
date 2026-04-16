@@ -13,7 +13,7 @@ use Myerscode\Beacon\Support\DependencyChecker;
 echo "Beacon Dependency Check\n";
 echo "=======================\n\n";
 
-$results  = DependencyChecker::check();
+$results  = (new DependencyChecker())->check();
 $allFound = true;
 
 foreach ($results as $check) {

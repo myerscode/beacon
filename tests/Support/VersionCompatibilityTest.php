@@ -78,6 +78,6 @@ final class VersionCompatibilityTest extends TestCase
     {
         $method = new ReflectionMethod(DependencyChecker::class, 'versionCompatibility');
 
-        return $method->invoke(null, $chrome, $driver);
+        return $method->invoke(new DependencyChecker(), $chrome, $driver);
     }
 }

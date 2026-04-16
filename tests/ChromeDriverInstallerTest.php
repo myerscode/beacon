@@ -31,7 +31,7 @@ final class ChromeDriverInstallerTest extends TestCase
         $binary = $this->tmpDir . DIRECTORY_SEPARATOR . $this->binaryName();
         file_put_contents($binary, 'fake binary');
 
-        $result = ChromeDriverInstaller::clean($this->tmpDir);
+        $result = (new ChromeDriverInstaller())->clean($this->tmpDir);
 
         $this->assertInstanceOf(InstallationResult::class, $result);
         $this->assertSame(InstallationResult::STATUS_REMOVED, $result->status);
@@ -41,7 +41,7 @@ final class ChromeDriverInstallerTest extends TestCase
 
     public function testCleanIsNoopWhenNoBinaryPresent(): void
     {
-        $result = ChromeDriverInstaller::clean($this->tmpDir);
+        $result = (new ChromeDriverInstaller())->clean($this->tmpDir);
 
         $this->assertInstanceOf(InstallationResult::class, $result);
         $this->assertSame(InstallationResult::STATUS_NOTHING, $result->status);
@@ -52,69 +52,81 @@ final class ChromeDriverInstallerTest extends TestCase
 
     public function testInstallSkipsWhenVersionAlreadyMatchesChrome(): void
     {
-        $chromeVersion = ChromeDriverInstaller::getChromeVersion();
+        $installer = $this->getMockBuilder(ChromeDriverInstaller::class)
+            ->onlyMethods(['getBinaryVersion', 'getChromeVersion'])
+            ->getMock();
 
-        if ($chromeVersion === null) {
-            $this->markTestSkipped('Chrome not available in this environment.');
-        }
+        $installer->expects($this->atLeastOnce())
+            ->method('getBinaryVersion')
+            ->willReturn('120.0.0.0');
 
-        $chromeMajor = (int) explode('.', $chromeVersion)[0];
-        $binary      = $this->tmpDir . DIRECTORY_SEPARATOR . $this->binaryName();
-        $this->writeFakeBinary($binary, "ChromeDriver {$chromeMajor}.0.0.0");
+        $installer->expects($this->atLeastOnce())
+            ->method('getChromeVersion')
+            ->willReturn('120.0.6099.109');
 
-        $result = ChromeDriverInstaller::install(force: false, driversDir: $this->tmpDir);
+        $binary = $this->tmpDir . DIRECTORY_SEPARATOR . $this->binaryName();
+        file_put_contents($binary, 'fake binary');
+
+        $result = $installer->install(force: false, driversDir: $this->tmpDir);
 
         $this->assertSame(InstallationResult::STATUS_SKIPPED, $result->status);
         $this->assertTrue($result->isSkipped());
         $this->assertStringContainsStringIgnoringCase('Skipping', $result->summary);
     }
 
-    public function testInstallWithForceFlagSkipsVersionCheck(): void
+    public function testInstallWithForceFlagBypassesVersionCheck(): void
     {
-        $chromeVersion = ChromeDriverInstaller::getChromeVersion();
+        $installer = $this->getMockBuilder(ChromeDriverInstaller::class)
+            ->onlyMethods(['getBinaryVersion', 'getChromeVersion', 'download'])
+            ->getMock();
 
-        if ($chromeVersion === null) {
-            $this->markTestSkipped('Chrome not available in this environment.');
-        }
+        $installer->expects($this->never())
+            ->method('getChromeVersion');
 
-        $chromeMajor = (int) explode('.', $chromeVersion)[0];
-        $binary      = $this->tmpDir . DIRECTORY_SEPARATOR . $this->binaryName();
-        $this->writeFakeBinary($binary, "ChromeDriver {$chromeMajor}.0.0.0");
+        $installer->expects($this->once())
+            ->method('download')
+            ->with($this->tmpDir)
+            ->willReturn(InstallationResult::success('ChromeDriver installed'));
 
-        try {
-            $result = ChromeDriverInstaller::install(force: true, driversDir: $this->tmpDir);
-            $this->assertNotSame(InstallationResult::STATUS_SKIPPED, $result->status);
-        } catch (\RuntimeException) {
-            // Network not available — acceptable in CI
-            $this->assertTrue(true);
-        }
+        $result = $installer->install(force: true, driversDir: $this->tmpDir);
+
+        $this->assertTrue($result->successful());
+        $this->assertNotSame(InstallationResult::STATUS_SKIPPED, $result->status);
     }
 
     public function testInstallProceedsWhenVersionMismatches(): void
     {
-        $chromeVersion = ChromeDriverInstaller::getChromeVersion();
+        $installer = $this->getMockBuilder(ChromeDriverInstaller::class)
+            ->onlyMethods(['getBinaryVersion', 'getChromeVersion', 'download'])
+            ->getMock();
 
-        if ($chromeVersion === null) {
-            $this->markTestSkipped('Chrome not available in this environment.');
-        }
+        $installer->expects($this->atLeastOnce())
+            ->method('getBinaryVersion')
+            ->willReturn('119.0.0.0');
+
+        $installer->expects($this->atLeastOnce())
+            ->method('getChromeVersion')
+            ->willReturn('120.0.6099.109');
+
+        $installer->expects($this->once())
+            ->method('download')
+            ->with($this->tmpDir)
+            ->willReturn(InstallationResult::success('ChromeDriver installed'));
 
         $binary = $this->tmpDir . DIRECTORY_SEPARATOR . $this->binaryName();
-        $this->writeFakeBinary($binary, 'ChromeDriver 1.0.0.0');
+        file_put_contents($binary, 'fake binary');
 
-        try {
-            $result = ChromeDriverInstaller::install(force: false, driversDir: $this->tmpDir);
-            $this->assertNotSame(InstallationResult::STATUS_SKIPPED, $result->status);
-        } catch (\RuntimeException) {
-            // Network not available — acceptable in CI
-            $this->assertTrue(true);
-        }
+        $result = $installer->install(force: false, driversDir: $this->tmpDir);
+
+        $this->assertTrue($result->successful());
+        $this->assertNotSame(InstallationResult::STATUS_SKIPPED, $result->status);
     }
 
     // --- platform() ---
 
     public function testPlatformReturnsKnownValue(): void
     {
-        $platform = $this->callStatic('platform');
+        $platform = $this->callMethod('platform');
 
         $this->assertContains($platform, ['linux64', 'mac-x64', 'mac-arm64', 'win32', 'win64']);
     }
@@ -123,7 +135,7 @@ final class ChromeDriverInstallerTest extends TestCase
 
     public function testBinaryNameIsCorrectForCurrentOs(): void
     {
-        $name     = $this->callStatic('binaryName');
+        $name     = $this->callMethod('binaryName');
         $expected = PHP_OS_FAMILY === 'Windows' ? 'chromedriver.exe' : 'chromedriver';
 
         $this->assertSame($expected, $name);
@@ -131,22 +143,39 @@ final class ChromeDriverInstallerTest extends TestCase
 
     // --- getChromeVersion() ---
 
-    public function testGetChromeVersionReturnsNullOrVersionString(): void
+    public function testGetChromeVersionReturnsVersionWhenChromeFound(): void
     {
-        $version = ChromeDriverInstaller::getChromeVersion();
+        $installer = $this->getMockBuilder(ChromeDriverInstaller::class)
+            ->onlyMethods(['getBinaryVersion'])
+            ->getMock();
 
-        if ($version !== null) {
-            $this->assertMatchesRegularExpression('/^\d+\.\d+/', $version);
-        } else {
-            $this->assertNull($version);
-        }
+        $installer->expects($this->atLeastOnce())
+            ->method('getBinaryVersion')
+            ->willReturn('120.0.6099.109');
+
+        $version = $installer->getChromeVersion();
+
+        $this->assertSame('120.0.6099.109', $version);
+    }
+
+    public function testGetChromeVersionReturnsNullWhenNoChromeFound(): void
+    {
+        $installer = $this->getMockBuilder(ChromeDriverInstaller::class)
+            ->onlyMethods(['getBinaryVersion'])
+            ->getMock();
+
+        $installer->expects($this->atLeastOnce())
+            ->method('getBinaryVersion')
+            ->willReturn(null);
+
+        $this->assertNull($installer->getChromeVersion());
     }
 
     // --- getBinaryVersion() ---
 
     public function testGetBinaryVersionReturnsNullForMissingBinary(): void
     {
-        $version = $this->callStatic('getBinaryVersion', '/nonexistent/path/chromedriver');
+        $version = $this->callMethod('getBinaryVersion', '/nonexistent/path/chromedriver');
 
         $this->assertNull($version);
     }
@@ -160,7 +189,7 @@ final class ChromeDriverInstallerTest extends TestCase
         $binary = $this->tmpDir . DIRECTORY_SEPARATOR . 'fake_chromedriver';
         $this->writeFakeBinary($binary, 'ChromeDriver 120.0.6099.109');
 
-        $version = $this->callStatic('getBinaryVersion', $binary);
+        $version = $this->callMethod('getBinaryVersion', $binary);
 
         $this->assertSame('120.0.6099.109', $version);
     }
@@ -172,25 +201,25 @@ final class ChromeDriverInstallerTest extends TestCase
         $newDir = $this->tmpDir . '/subdir_' . uniqid();
         $this->assertDirectoryDoesNotExist($newDir);
 
-        $this->callStatic('resolveDriversDir', $newDir);
+        $this->callMethod('resolveDriversDir', $newDir);
 
         $this->assertDirectoryExists($newDir);
     }
 
     public function testResolveDriversDirReturnsExistingDir(): void
     {
-        $result = $this->callStatic('resolveDriversDir', $this->tmpDir);
+        $result = $this->callMethod('resolveDriversDir', $this->tmpDir);
 
         $this->assertSame($this->tmpDir, $result);
     }
 
     // --- helpers ---
 
-    private function callStatic(string $method, mixed ...$args): mixed
+    private function callMethod(string $method, mixed ...$args): mixed
     {
         $ref = new ReflectionMethod(ChromeDriverInstaller::class, $method);
 
-        return $ref->invoke(null, ...$args);
+        return $ref->invoke(new ChromeDriverInstaller(), ...$args);
     }
 
     private function binaryName(): string

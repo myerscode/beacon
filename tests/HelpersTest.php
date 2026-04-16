@@ -21,28 +21,23 @@ final class HelpersTest extends TestCase
         $this->assertInstanceOf(Browser::class, $browser);
     }
 
-    public function testBeaconWithAllOptionsReturnsBrowser(): void
+    #[\PHPUnit\Framework\Attributes\DataProvider('optionsProvider')]
+    public function testBeaconWithOptionsReturnsBrowser(array $options): void
     {
-        $browser = beacon(
-            windowSize: [1440, 900],
-            waitTimeout: 30,
-            arguments: ['--disable-extensions', '--incognito'],
-        );
+        $browser = beacon(...$options);
 
         $this->assertInstanceOf(Browser::class, $browser);
     }
 
-    public function testBeaconWithArgumentsReturnsBrowser(): void
+    /**
+     * @return array<string, array{array<string, mixed>}>
+     */
+    public static function optionsProvider(): array
     {
-        $browser = beacon(arguments: ['--disable-extensions']);
-
-        $this->assertInstanceOf(Browser::class, $browser);
-    }
-
-    public function testBeaconWithWindowSizeReturnsBrowser(): void
-    {
-        $browser = beacon(windowSize: [1920, 1080]);
-
-        $this->assertInstanceOf(Browser::class, $browser);
+        return [
+            'window size'    => [['windowSize' => [1920, 1080]]],
+            'arguments'      => [['arguments' => ['--disable-extensions']]],
+            'all options'    => [['windowSize' => [1440, 900], 'waitTimeout' => 30, 'arguments' => ['--disable-extensions', '--incognito']]],
+        ];
     }
 }

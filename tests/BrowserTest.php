@@ -54,13 +54,15 @@ final class BrowserTest extends TestCase
         $this->assertInstanceOf(Browser::class, $browser);
     }
 
-    public function testQuitWithoutClientDoesNotThrow(): void
+    public function testQuitWithoutClientResetsState(): void
     {
         $browser = Browser::create();
-
         $browser->quit();
 
-        $this->assertTrue(true);
+        // After quit, creating a new visit flow should work — driver manager is null
+        // Verify by checking that a fresh driver would be created (no exception thrown)
+        $reflection = new \ReflectionProperty(Browser::class, 'chromeDriverManager');
+        $this->assertNull($reflection->getValue($browser));
     }
 
     public function testWaitTimeoutReturnsSelf(): void

@@ -12,7 +12,7 @@ final class DependencyCheckerTest extends TestCase
 {
     public function testCheckContainsExpectedNames(): void
     {
-        $results = DependencyChecker::check();
+        $results = (new DependencyChecker())->check();
         $names   = array_map(fn (DependencyCheck $dependencyCheck): string => $dependencyCheck->name, $results);
 
         $this->assertContains('Chrome/Chromium', $names);
@@ -20,9 +20,10 @@ final class DependencyCheckerTest extends TestCase
         $this->assertContains('Node.js', $names);
         $this->assertContains('Lighthouse', $names);
     }
+
     public function testCheckReturnsArrayOfChecks(): void
     {
-        $results = DependencyChecker::check();
+        $results = (new DependencyChecker())->check();
 
         $this->assertGreaterThanOrEqual(4, count($results));
 
@@ -31,7 +32,7 @@ final class DependencyCheckerTest extends TestCase
 
     public function testChromeCheckReturnsDependencyCheck(): void
     {
-        $dependencyCheck = DependencyChecker::chrome();
+        $dependencyCheck = (new DependencyChecker())->chrome();
 
         $this->assertInstanceOf(DependencyCheck::class, $dependencyCheck);
         $this->assertSame('Chrome/Chromium', $dependencyCheck->name);
@@ -39,7 +40,7 @@ final class DependencyCheckerTest extends TestCase
 
     public function testChromeDriverCheckReturnsDependencyCheck(): void
     {
-        $dependencyCheck = DependencyChecker::chromeDriver();
+        $dependencyCheck = (new DependencyChecker())->chromeDriver();
 
         $this->assertInstanceOf(DependencyCheck::class, $dependencyCheck);
         $this->assertSame('ChromeDriver', $dependencyCheck->name);
@@ -47,7 +48,7 @@ final class DependencyCheckerTest extends TestCase
 
     public function testEachCheckHasMessage(): void
     {
-        $results = DependencyChecker::check();
+        $results = (new DependencyChecker())->check();
 
         foreach ($results as $result) {
             $this->assertNotEmpty($result->message);
@@ -56,7 +57,7 @@ final class DependencyCheckerTest extends TestCase
 
     public function testLighthouseCheckReturnsDependencyCheck(): void
     {
-        $dependencyCheck = DependencyChecker::lighthouse();
+        $dependencyCheck = (new DependencyChecker())->lighthouse();
 
         $this->assertInstanceOf(DependencyCheck::class, $dependencyCheck);
         $this->assertSame('Lighthouse', $dependencyCheck->name);
@@ -64,7 +65,7 @@ final class DependencyCheckerTest extends TestCase
 
     public function testNodeCheckReturnsDependencyCheck(): void
     {
-        $dependencyCheck = DependencyChecker::node();
+        $dependencyCheck = (new DependencyChecker())->node();
 
         $this->assertInstanceOf(DependencyCheck::class, $dependencyCheck);
         $this->assertSame('Node.js', $dependencyCheck->name);

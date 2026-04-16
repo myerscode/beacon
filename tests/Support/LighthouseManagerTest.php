@@ -17,7 +17,7 @@ final class LighthouseManagerTest extends TestCase
     public function testFindNpmReturnsStringOrThrows(): void
     {
         try {
-            $npm = $this->callStatic('findNpm');
+            $npm = $this->callMethod('findNpm');
             $this->assertIsString($npm);
             $this->assertNotEmpty($npm);
         } catch (RuntimeException $e) {
@@ -29,7 +29,7 @@ final class LighthouseManagerTest extends TestCase
 
     public function testFindLighthouseReturnsNullOrString(): void
     {
-        $result = $this->callStatic('findLighthouse');
+        $result = $this->callMethod('findLighthouse');
 
         if ($result !== null) {
             $this->assertIsString($result);
@@ -43,7 +43,7 @@ final class LighthouseManagerTest extends TestCase
 
     public function testGetBinaryVersionReturnsNullForMissingBinary(): void
     {
-        $version = $this->callStatic('getBinaryVersion', '/nonexistent/lighthouse');
+        $version = $this->callMethod('getBinaryVersion', '/nonexistent/lighthouse');
 
         $this->assertNull($version);
     }
@@ -61,7 +61,7 @@ final class LighthouseManagerTest extends TestCase
         file_put_contents($binary, "#!/bin/sh\necho '12.3.0'\n");
         chmod($binary, 0755);
 
-        $version = $this->callStatic('getBinaryVersion', $binary);
+        $version = $this->callMethod('getBinaryVersion', $binary);
 
         $this->assertSame('12.3.0', $version);
 
@@ -73,13 +73,20 @@ final class LighthouseManagerTest extends TestCase
 
     public function testInstallReturnsSkippedWhenAlreadyInstalled(): void
     {
-        $existing = $this->callStatic('findLighthouse');
+        $manager = $this->getMockBuilder(LighthouseManager::class)
+            ->onlyMethods(['findLighthouse', 'getBinaryVersion'])
+            ->getMock();
 
-        if ($existing === null) {
-            $this->markTestSkipped('Lighthouse not installed in this environment.');
-        }
+        $manager->expects($this->atLeastOnce())
+            ->method('findLighthouse')
+            ->willReturn('/usr/local/bin/lighthouse');
 
-        $result = LighthouseManager::install(force: false);
+        $manager->expects($this->once())
+            ->method('getBinaryVersion')
+            ->with('/usr/local/bin/lighthouse')
+            ->willReturn('12.3.0');
+
+        $result = $manager->install(force: false);
 
         $this->assertInstanceOf(InstallationResult::class, $result);
         $this->assertSame(InstallationResult::STATUS_SKIPPED, $result->status);
@@ -91,13 +98,15 @@ final class LighthouseManagerTest extends TestCase
 
     public function testRemoveReturnsNothingWhenNotInstalled(): void
     {
-        $existing = $this->callStatic('findLighthouse');
+        $manager = $this->getMockBuilder(LighthouseManager::class)
+            ->onlyMethods(['findLighthouse'])
+            ->getMock();
 
-        if ($existing !== null) {
-            $this->markTestSkipped('Lighthouse is installed — skipping not-installed test.');
-        }
+        $manager->expects($this->once())
+            ->method('findLighthouse')
+            ->willReturn(null);
 
-        $result = LighthouseManager::remove();
+        $result = $manager->remove();
 
         $this->assertInstanceOf(InstallationResult::class, $result);
         $this->assertSame(InstallationResult::STATUS_NOTHING, $result->status);
@@ -106,10 +115,10 @@ final class LighthouseManagerTest extends TestCase
 
     // --- helper ---
 
-    private function callStatic(string $method, mixed ...$args): mixed
+    private function callMethod(string $method, mixed ...$args): mixed
     {
         $ref = new ReflectionMethod(LighthouseManager::class, $method);
 
-        return $ref->invoke(null, ...$args);
+        return $ref->invoke(new LighthouseManager(), ...$args);
     }
 }

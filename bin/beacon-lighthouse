@@ -10,9 +10,9 @@ use Myerscode\Beacon\Support\LighthouseManager;
 $command = $argv[1] ?? 'install';
 
 match ($command) {
-    'install' => print(LighthouseManager::install()->output()),
-    'update'  => print(LighthouseManager::update()->output()),
-    'remove'  => print(LighthouseManager::remove()->output()),
+    'install' => print(new LighthouseManager()->install()->output()),
+    'update'  => print(new LighthouseManager()->update()->output()),
+    'remove'  => print(new LighthouseManager()->remove()->output()),
     default   => (static function () use ($command): never {
         echo sprintf("Unknown command: %s\n", $command);
         echo "Usage: beacon-lighthouse [install|update|remove]\n";

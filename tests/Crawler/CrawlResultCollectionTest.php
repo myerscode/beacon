@@ -89,7 +89,7 @@ final class CrawlResultCollectionTest extends TestCase
     {
         $crawlResultCollection = new CrawlResultCollection();
 
-        $this->assertNotInstanceOf(\Myerscode\Beacon\Crawler\CrawlResult::class, $crawlResultCollection->get('https://missing.com'));
+        $this->assertNull($crawlResultCollection->get('https://missing.com'));
     }
 
     public function testHasReturnsFalseForMissing(): void

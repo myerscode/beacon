@@ -117,17 +117,6 @@ final class CrawlConfigTest extends TestCase
         $this->assertSame(3, $crawlConfig->getMaxRetries());
     }
 
-    public function testNotifyCrawledDoesNothingWithoutCallback(): void
-    {
-        $crawlConfig = new CrawlConfig();
-        $crawlResult = new CrawlResult('https://example.com', true, 200, [], 0);
-
-        // Should not throw
-        $crawlConfig->notifyCrawled('https://example.com', $crawlResult);
-
-        $this->assertTrue(true);
-    }
-
     public function testOnCrawledCallbackIsFired(): void
     {
         $called = [];

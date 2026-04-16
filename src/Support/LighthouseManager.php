@@ -11,19 +11,20 @@ use RuntimeException;
  */
 class LighthouseManager
 {
+
     /**
      * Install Lighthouse CLI globally via npm.
      * Skips if already installed.
      */
-    public static function install(bool $force = false): InstallationResult
+    public function install(bool $force = false): InstallationResult
     {
-        $npm = self::findNpm();
+        $npm = $this->findNpm();
 
         if (!$force) {
-            $existing = self::findLighthouse();
+            $existing = $this->findLighthouse();
 
             if ($existing !== null) {
-                $version = self::getBinaryVersion($existing);
+                $version = $this->getBinaryVersion($existing);
 
                 return InstallationResult::skipped(
                     sprintf('Lighthouse %s already installed at %s. Skipping.', $version ?? 'unknown', $existing),
@@ -31,8 +32,8 @@ class LighthouseManager
             }
         }
 
-        $npmOutput = self::runNpm($npm, ['install', '-g', 'lighthouse']);
-        $path      = self::findLighthouse();
+        $npmOutput = $this->runNpm($npm, ['install', '-g', 'lighthouse']);
+        $path      = $this->findLighthouse();
 
         return InstallationResult::success(
             sprintf('Lighthouse installed%s', $path !== null ? " at {$path}" : ''),
@@ -43,13 +44,13 @@ class LighthouseManager
     /**
      * Update Lighthouse CLI to the latest version.
      */
-    public static function update(): InstallationResult
+    public function update(): InstallationResult
     {
-        $npm       = self::findNpm();
-        $npmOutput = self::runNpm($npm, ['update', '-g', 'lighthouse']);
+        $npm       = $this->findNpm();
+        $npmOutput = $this->runNpm($npm, ['update', '-g', 'lighthouse']);
 
-        $path    = self::findLighthouse();
-        $version = $path !== null ? self::getBinaryVersion($path) : null;
+        $path    = $this->findLighthouse();
+        $version = $path !== null ? $this->getBinaryVersion($path) : null;
 
         return InstallationResult::success(
             sprintf('Lighthouse updated%s', $version !== null ? " to v{$version}" : ''),
@@ -60,21 +61,21 @@ class LighthouseManager
     /**
      * Remove Lighthouse CLI global installation.
      */
-    public static function remove(): InstallationResult
+    public function remove(): InstallationResult
     {
-        $npm      = self::findNpm();
-        $existing = self::findLighthouse();
+        $npm      = $this->findNpm();
+        $existing = $this->findLighthouse();
 
         if ($existing === null) {
             return InstallationResult::nothing('Lighthouse is not installed, nothing to remove.');
         }
 
-        $npmOutput = self::runNpm($npm, ['uninstall', '-g', 'lighthouse']);
+        $npmOutput = $this->runNpm($npm, ['uninstall', '-g', 'lighthouse']);
 
         return InstallationResult::removed('Lighthouse removed.', ...$npmOutput);
     }
 
-    private static function findNpm(): string
+    private function findNpm(): string
     {
         $command = PHP_OS_FAMILY === 'Windows' ? 'where' : 'which';
         $output  = [];
@@ -91,7 +92,7 @@ class LighthouseManager
         return trim($output[0]);
     }
 
-    private static function findLighthouse(): ?string
+    protected function findLighthouse(): ?string
     {
         $command = PHP_OS_FAMILY === 'Windows' ? 'where' : 'which';
         $output  = [];
@@ -106,7 +107,7 @@ class LighthouseManager
         return null;
     }
 
-    private static function getBinaryVersion(string $binary): ?string
+    protected function getBinaryVersion(string $binary): ?string
     {
         $output = [];
         $code   = 0;
@@ -128,7 +129,7 @@ class LighthouseManager
      * @param string[] $args
      * @return string[]
      */
-    private static function runNpm(string $npm, array $args): array
+    private function runNpm(string $npm, array $args): array
     {
         $cmd    = implode(' ', array_map('escapeshellarg', [$npm, ...$args]));
         $output = [];
