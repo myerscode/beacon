@@ -6,10 +6,10 @@ namespace Myerscode\Beacon\Support;
 
 class InstallationResult
 {
+    public const STATUS_NOTHING  = 'nothing';
+    public const STATUS_REMOVED  = 'removed';
     public const STATUS_SKIPPED  = 'skipped';
     public const STATUS_SUCCESS  = 'success';
-    public const STATUS_REMOVED  = 'removed';
-    public const STATUS_NOTHING  = 'nothing';
 
     /**
      * @param string[] $messages
@@ -19,6 +19,16 @@ class InstallationResult
         public readonly string $summary,
         public readonly array $messages = [],
     ) {
+    }
+
+    public static function nothing(string $summary, string ...$messages): self
+    {
+        return new self(self::STATUS_NOTHING, $summary, $messages);
+    }
+
+    public static function removed(string $summary, string ...$messages): self
+    {
+        return new self(self::STATUS_REMOVED, $summary, $messages);
     }
 
     public static function skipped(string $summary, string ...$messages): self
@@ -31,24 +41,9 @@ class InstallationResult
         return new self(self::STATUS_SUCCESS, $summary, $messages);
     }
 
-    public static function removed(string $summary, string ...$messages): self
-    {
-        return new self(self::STATUS_REMOVED, $summary, $messages);
-    }
-
-    public static function nothing(string $summary, string ...$messages): self
-    {
-        return new self(self::STATUS_NOTHING, $summary, $messages);
-    }
-
     public function isSkipped(): bool
     {
         return $this->status === self::STATUS_SKIPPED;
-    }
-
-    public function successful(): bool
-    {
-        return $this->status === self::STATUS_SUCCESS;
     }
 
     public function ok(): bool
@@ -64,5 +59,10 @@ class InstallationResult
         $lines = [...$this->messages, $this->summary];
 
         return implode("\n", $lines) . "\n";
+    }
+
+    public function successful(): bool
+    {
+        return $this->status === self::STATUS_SUCCESS;
     }
 }

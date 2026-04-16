@@ -11,7 +11,6 @@ use RuntimeException;
  */
 class LighthouseManager
 {
-
     /**
      * Install Lighthouse CLI globally via npm.
      * Skips if already installed.
@@ -42,23 +41,6 @@ class LighthouseManager
     }
 
     /**
-     * Update Lighthouse CLI to the latest version.
-     */
-    public function update(): InstallationResult
-    {
-        $npm       = $this->findNpm();
-        $npmOutput = $this->runNpm($npm, ['update', '-g', 'lighthouse']);
-
-        $path    = $this->findLighthouse();
-        $version = $path !== null ? $this->getBinaryVersion($path) : null;
-
-        return InstallationResult::success(
-            sprintf('Lighthouse updated%s', $version !== null ? " to v{$version}" : ''),
-            ...$npmOutput,
-        );
-    }
-
-    /**
      * Remove Lighthouse CLI global installation.
      */
     public function remove(): InstallationResult
@@ -75,21 +57,21 @@ class LighthouseManager
         return InstallationResult::removed('Lighthouse removed.', ...$npmOutput);
     }
 
-    private function findNpm(): string
+    /**
+     * Update Lighthouse CLI to the latest version.
+     */
+    public function update(): InstallationResult
     {
-        $command = PHP_OS_FAMILY === 'Windows' ? 'where' : 'which';
-        $output  = [];
-        $code    = 0;
+        $npm       = $this->findNpm();
+        $npmOutput = $this->runNpm($npm, ['update', '-g', 'lighthouse']);
 
-        @exec(sprintf('%s npm 2>/dev/null', $command), $output, $code);
+        $path    = $this->findLighthouse();
+        $version = $path !== null ? $this->getBinaryVersion($path) : null;
 
-        if ($code !== 0 || !isset($output[0]) || $output[0] === '') {
-            throw new RuntimeException(
-                'npm not found. Install Node.js from https://nodejs.org/ to manage Lighthouse.',
-            );
-        }
-
-        return trim($output[0]);
+        return InstallationResult::success(
+            sprintf('Lighthouse updated%s', $version !== null ? " to v{$version}" : ''),
+            ...$npmOutput,
+        );
     }
 
     protected function findLighthouse(): ?string
@@ -123,6 +105,23 @@ class LighthouseManager
         }
 
         return null;
+    }
+
+    private function findNpm(): string
+    {
+        $command = PHP_OS_FAMILY === 'Windows' ? 'where' : 'which';
+        $output  = [];
+        $code    = 0;
+
+        @exec(sprintf('%s npm 2>/dev/null', $command), $output, $code);
+
+        if ($code !== 0 || !isset($output[0]) || $output[0] === '') {
+            throw new RuntimeException(
+                'npm not found. Install Node.js from https://nodejs.org/ to manage Lighthouse.',
+            );
+        }
+
+        return trim($output[0]);
     }
 
     /**

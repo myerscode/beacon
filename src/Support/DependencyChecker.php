@@ -6,7 +6,6 @@ namespace Myerscode\Beacon\Support;
 
 class DependencyChecker
 {
-
     /**
      * Run all dependency checks.
      *

@@ -6,6 +6,7 @@ namespace Myerscode\Beacon;
 
 use Myerscode\Beacon\Support\InstallationResult;
 use RuntimeException;
+use ZipArchive;
 
 /**
  * Manages downloading and installing the correct ChromeDriver binary
@@ -18,42 +19,6 @@ class ChromeDriverInstaller
     private const CHROME_FOR_TESTING_VERSIONS_URL = 'https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json';
 
     private const CHROMEDRIVER_LATEST_URL = 'https://chromedriver.storage.googleapis.com/LATEST_RELEASE';
-
-    /**
-     * Install ChromeDriver matching the installed Chrome version.
-     * Skips if already installed and version matches.
-     */
-    public function install(bool $force = false, ?string $driversDir = null): InstallationResult
-    {
-        $driversDir = $this->resolveDriversDir($driversDir);
-        $binary     = $driversDir . DIRECTORY_SEPARATOR . $this->binaryName();
-
-        if (!$force && file_exists($binary)) {
-            $installedVersion = $this->getBinaryVersion($binary);
-            $chromeVersion    = $this->getChromeVersion();
-
-            if ($installedVersion !== null && $chromeVersion !== null) {
-                $installedMajor = (int) explode('.', $installedVersion)[0];
-                $chromeMajor    = (int) explode('.', $chromeVersion)[0];
-
-                if ($installedMajor === $chromeMajor) {
-                    return InstallationResult::skipped(
-                        sprintf('ChromeDriver %s already installed and matches Chrome %s. Skipping.', $installedVersion, $chromeVersion),
-                    );
-                }
-            }
-        }
-
-        return $this->download($driversDir);
-    }
-
-    /**
-     * Force re-download of ChromeDriver, replacing any existing binary.
-     */
-    public function update(?string $driversDir = null): InstallationResult
-    {
-        return $this->install(force: true, driversDir: $driversDir);
-    }
 
     /**
      * Remove the ChromeDriver binary from the drivers directory.
@@ -110,6 +75,42 @@ class ChromeDriverInstaller
         return null;
     }
 
+    /**
+     * Install ChromeDriver matching the installed Chrome version.
+     * Skips if already installed and version matches.
+     */
+    public function install(bool $force = false, ?string $driversDir = null): InstallationResult
+    {
+        $driversDir = $this->resolveDriversDir($driversDir);
+        $binary     = $driversDir . DIRECTORY_SEPARATOR . $this->binaryName();
+
+        if (!$force && file_exists($binary)) {
+            $installedVersion = $this->getBinaryVersion($binary);
+            $chromeVersion    = $this->getChromeVersion();
+
+            if ($installedVersion !== null && $chromeVersion !== null) {
+                $installedMajor = (int) explode('.', $installedVersion)[0];
+                $chromeMajor    = (int) explode('.', $chromeVersion)[0];
+
+                if ($installedMajor === $chromeMajor) {
+                    return InstallationResult::skipped(
+                        sprintf('ChromeDriver %s already installed and matches Chrome %s. Skipping.', $installedVersion, $chromeVersion),
+                    );
+                }
+            }
+        }
+
+        return $this->download($driversDir);
+    }
+
+    /**
+     * Force re-download of ChromeDriver, replacing any existing binary.
+     */
+    public function update(?string $driversDir = null): InstallationResult
+    {
+        return $this->install(force: true, driversDir: $driversDir);
+    }
+
     protected function download(string $driversDir): InstallationResult
     {
         $chromeVersion = $this->getChromeVersion();
@@ -158,89 +159,31 @@ class ChromeDriverInstaller
         );
     }
 
-    /**
-     * Resolve the download URL for the matching ChromeDriver version.
-     * Uses Chrome for Testing API for Chrome 115+, legacy storage for older versions.
-     *
-     * @return array{string, string|null} [url, optional notice message]
-     */
-    private function resolveDownloadUrl(int $chromeMajor, string $chromeVersion): array
+    protected function getBinaryVersion(string $binary): ?string
     {
-        $platform = $this->platform();
-
-        if ($chromeMajor >= 115) {
-            return $this->resolveModernDownloadUrl($chromeMajor, $chromeVersion, $platform);
+        if (!file_exists($binary) && !is_executable($binary)) {
+            return null;
         }
 
-        return [$this->resolveLegacyDownloadUrl($chromeMajor, $platform), null];
+        $output = [];
+        $code   = 0;
+
+        @exec('"' . $binary . '" --version 2>/dev/null', $output, $code);
+
+        if ($code !== 0 || !isset($output[0])) {
+            return null;
+        }
+
+        if (preg_match('/(\d+\.\d+[\.\d]*)/', $output[0], $matches)) {
+            return $matches[1];
+        }
+
+        return null;
     }
 
-    /**
-     * @return array{string, string|null}
-     */
-    private function resolveModernDownloadUrl(int $chromeMajor, string $chromeVersion, string $platform): array
+    private function binaryName(): string
     {
-        $json = $this->fetchUrl(self::CHROME_FOR_TESTING_VERSIONS_URL);
-        $data = json_decode($json, true);
-
-        if (!is_array($data) || !isset($data['versions'])) {
-            throw new RuntimeException('Failed to parse Chrome for Testing versions JSON.');
-        }
-
-        $bestUrl     = null;
-        $bestVersion = null;
-
-        foreach ($data['versions'] as $entry) {
-            $entryVersion = $entry['version'] ?? '';
-            $entryMajor   = (int) explode('.', $entryVersion)[0];
-
-            if ($entryMajor !== $chromeMajor) {
-                continue;
-            }
-
-            $downloads = $entry['downloads']['chromedriver'] ?? [];
-
-            foreach ($downloads as $download) {
-                if (($download['platform'] ?? '') === $platform) {
-                    if ($entryVersion === $chromeVersion) {
-                        return [$download['url'], null];
-                    }
-
-                    $bestUrl     = $download['url'];
-                    $bestVersion = $entryVersion;
-                }
-            }
-        }
-
-        if ($bestUrl !== null) {
-            return [$bestUrl, sprintf('Exact version match not found, using closest: %s', $bestVersion)];
-        }
-
-        throw new RuntimeException(
-            sprintf('No ChromeDriver download found for Chrome %d on platform "%s".', $chromeMajor, $platform),
-        );
-    }
-
-    private function resolveLegacyDownloadUrl(int $chromeMajor, string $platform): string
-    {
-        $latestUrl     = self::CHROMEDRIVER_LATEST_URL . '_' . $chromeMajor;
-        $latestVersion = trim($this->fetchUrl($latestUrl));
-
-        $platformMap = [
-            'linux64'   => 'linux64',
-            'mac-x64'   => 'mac64',
-            'mac-arm64' => 'mac_arm64',
-            'win32'     => 'win32',
-            'win64'     => 'win32',
-        ];
-
-        $legacyPlatform = $platformMap[$platform] ?? $platform;
-
-        return sprintf(
-            'https://chromedriver.storage.googleapis.com/%s/chromedriver_%s.zip',
-            $latestVersion,
-            $legacyPlatform,
-        );
+        return PHP_OS_FAMILY === 'Windows' ? 'chromedriver.exe' : 'chromedriver';
     }
 
     private function extractBinary(string $zipPath, string $driversDir): void
@@ -251,7 +194,7 @@ class ChromeDriverInstaller
             return;
         }
 
-        $zip = new \ZipArchive();
+        $zip = new ZipArchive();
 
         if ($zip->open($zipPath) !== true) {
             throw new RuntimeException('Failed to open ChromeDriver zip archive.');
@@ -309,6 +252,29 @@ class ChromeDriverInstaller
         $this->removeDirectory($extracted);
     }
 
+    private function fetchUrl(string $url): string
+    {
+        $context = stream_context_create([
+            'http' => [
+                'timeout'         => 30,
+                'follow_location' => 1,
+                'user_agent'      => 'myerscode/beacon ChromeDriverInstaller',
+            ],
+            'ssl' => [
+                'verify_peer'      => true,
+                'verify_peer_name' => true,
+            ],
+        ]);
+
+        $content = @file_get_contents($url, false, $context);
+
+        if ($content === false) {
+            throw new RuntimeException(sprintf('Failed to fetch URL: %s', $url));
+        }
+
+        return $content;
+    }
+
     private function findFileRecursive(string $dir, string $filename): ?string
     {
         if (!is_dir($dir)) {
@@ -342,6 +308,22 @@ class ChromeDriverInstaller
         return null;
     }
 
+    private function platform(): string
+    {
+        $os   = PHP_OS_FAMILY;
+        $arch = php_uname('m');
+
+        if ($os === 'Windows') {
+            return PHP_INT_SIZE === 8 ? 'win64' : 'win32';
+        }
+
+        if ($os === 'Darwin') {
+            return str_contains($arch, 'arm') ? 'mac-arm64' : 'mac-x64';
+        }
+
+        return 'linux64';
+    }
+
     private function removeDirectory(string $dir): void
     {
         if (!is_dir($dir)) {
@@ -366,49 +348,21 @@ class ChromeDriverInstaller
         rmdir($dir);
     }
 
-    private function fetchUrl(string $url): string
+    /**
+     * Resolve the download URL for the matching ChromeDriver version.
+     * Uses Chrome for Testing API for Chrome 115+, legacy storage for older versions.
+     *
+     * @return array{string, string|null} [url, optional notice message]
+     */
+    private function resolveDownloadUrl(int $chromeMajor, string $chromeVersion): array
     {
-        $context = stream_context_create([
-            'http' => [
-                'timeout'         => 30,
-                'follow_location' => 1,
-                'user_agent'      => 'myerscode/beacon ChromeDriverInstaller',
-            ],
-            'ssl' => [
-                'verify_peer'      => true,
-                'verify_peer_name' => true,
-            ],
-        ]);
+        $platform = $this->platform();
 
-        $content = @file_get_contents($url, false, $context);
-
-        if ($content === false) {
-            throw new RuntimeException(sprintf('Failed to fetch URL: %s', $url));
+        if ($chromeMajor >= 115) {
+            return $this->resolveModernDownloadUrl($chromeMajor, $chromeVersion, $platform);
         }
 
-        return $content;
-    }
-
-    protected function getBinaryVersion(string $binary): ?string
-    {
-        if (!file_exists($binary) && !is_executable($binary)) {
-            return null;
-        }
-
-        $output = [];
-        $code   = 0;
-
-        @exec('"' . $binary . '" --version 2>/dev/null', $output, $code);
-
-        if ($code !== 0 || !isset($output[0])) {
-            return null;
-        }
-
-        if (preg_match('/(\d+\.\d+[\.\d]*)/', $output[0], $matches)) {
-            return $matches[1];
-        }
-
-        return null;
+        return [$this->resolveLegacyDownloadUrl($chromeMajor, $platform), null];
     }
 
     private function resolveDriversDir(?string $dir = null): string
@@ -422,25 +376,72 @@ class ChromeDriverInstaller
         return $dir;
     }
 
-    private function platform(): string
+    private function resolveLegacyDownloadUrl(int $chromeMajor, string $platform): string
     {
-        $os   = PHP_OS_FAMILY;
-        $arch = php_uname('m');
+        $latestUrl     = self::CHROMEDRIVER_LATEST_URL . '_' . $chromeMajor;
+        $latestVersion = trim($this->fetchUrl($latestUrl));
 
-        if ($os === 'Windows') {
-            return PHP_INT_SIZE === 8 ? 'win64' : 'win32';
-        }
+        $platformMap = [
+            'linux64'   => 'linux64',
+            'mac-x64'   => 'mac64',
+            'mac-arm64' => 'mac_arm64',
+            'win32'     => 'win32',
+            'win64'     => 'win32',
+        ];
 
-        if ($os === 'Darwin') {
-            return str_contains($arch, 'arm') ? 'mac-arm64' : 'mac-x64';
-        }
+        $legacyPlatform = $platformMap[$platform] ?? $platform;
 
-        return 'linux64';
+        return sprintf(
+            'https://chromedriver.storage.googleapis.com/%s/chromedriver_%s.zip',
+            $latestVersion,
+            $legacyPlatform,
+        );
     }
 
-    private function binaryName(): string
+    /**
+     * @return array{string, string|null}
+     */
+    private function resolveModernDownloadUrl(int $chromeMajor, string $chromeVersion, string $platform): array
     {
-        return PHP_OS_FAMILY === 'Windows' ? 'chromedriver.exe' : 'chromedriver';
+        $json = $this->fetchUrl(self::CHROME_FOR_TESTING_VERSIONS_URL);
+        $data = json_decode($json, true);
+
+        if (!is_array($data) || !isset($data['versions'])) {
+            throw new RuntimeException('Failed to parse Chrome for Testing versions JSON.');
+        }
+
+        $bestUrl     = null;
+        $bestVersion = null;
+
+        foreach ($data['versions'] as $entry) {
+            $entryVersion = $entry['version'] ?? '';
+            $entryMajor   = (int) explode('.', $entryVersion)[0];
+
+            if ($entryMajor !== $chromeMajor) {
+                continue;
+            }
+
+            $downloads = $entry['downloads']['chromedriver'] ?? [];
+
+            foreach ($downloads as $download) {
+                if (($download['platform'] ?? '') === $platform) {
+                    if ($entryVersion === $chromeVersion) {
+                        return [$download['url'], null];
+                    }
+
+                    $bestUrl     = $download['url'];
+                    $bestVersion = $entryVersion;
+                }
+            }
+        }
+
+        if ($bestUrl !== null) {
+            return [$bestUrl, sprintf('Exact version match not found, using closest: %s', $bestVersion)];
+        }
+
+        throw new RuntimeException(
+            sprintf('No ChromeDriver download found for Chrome %d on platform "%s".', $chromeMajor, $platform),
+        );
     }
 
     /**

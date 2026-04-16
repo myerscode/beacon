@@ -9,6 +9,17 @@ use PHPUnit\Framework\TestCase;
 
 final class HelpersTest extends TestCase
 {
+    /**
+     * @return array<string, array{array<string, mixed>}>
+     */
+    public static function optionsProvider(): array
+    {
+        return [
+            'window size'    => [['windowSize' => [1920, 1080]]],
+            'arguments'      => [['arguments' => ['--disable-extensions']]],
+            'all options'    => [['windowSize' => [1440, 900], 'waitTimeout' => 30, 'arguments' => ['--disable-extensions', '--incognito']]],
+        ];
+    }
     public function testBeaconFunctionExists(): void
     {
         $this->assertTrue(function_exists('beacon'));
@@ -27,17 +38,5 @@ final class HelpersTest extends TestCase
         $browser = beacon(...$options);
 
         $this->assertInstanceOf(Browser::class, $browser);
-    }
-
-    /**
-     * @return array<string, array{array<string, mixed>}>
-     */
-    public static function optionsProvider(): array
-    {
-        return [
-            'window size'    => [['windowSize' => [1920, 1080]]],
-            'arguments'      => [['arguments' => ['--disable-extensions']]],
-            'all options'    => [['windowSize' => [1440, 900], 'waitTimeout' => 30, 'arguments' => ['--disable-extensions', '--incognito']]],
-        ];
     }
 }

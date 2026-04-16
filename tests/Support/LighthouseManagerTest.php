@@ -12,19 +12,6 @@ use RuntimeException;
 
 final class LighthouseManagerTest extends TestCase
 {
-    // --- findNpm() ---
-
-    public function testFindNpmReturnsStringOrThrows(): void
-    {
-        try {
-            $npm = $this->callMethod('findNpm');
-            $this->assertIsString($npm);
-            $this->assertNotEmpty($npm);
-        } catch (RuntimeException $e) {
-            $this->assertStringContainsString('npm not found', $e->getMessage());
-        }
-    }
-
     // --- findLighthouse() ---
 
     public function testFindLighthouseReturnsNullOrString(): void
@@ -38,14 +25,17 @@ final class LighthouseManagerTest extends TestCase
             $this->assertNull($result);
         }
     }
+    // --- findNpm() ---
 
-    // --- getBinaryVersion() ---
-
-    public function testGetBinaryVersionReturnsNullForMissingBinary(): void
+    public function testFindNpmReturnsStringOrThrows(): void
     {
-        $version = $this->callMethod('getBinaryVersion', '/nonexistent/lighthouse');
-
-        $this->assertNull($version);
+        try {
+            $npm = $this->callMethod('findNpm');
+            $this->assertIsString($npm);
+            $this->assertNotEmpty($npm);
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('npm not found', $e->getMessage());
+        }
     }
 
     public function testGetBinaryVersionParsesOutput(): void
@@ -67,6 +57,15 @@ final class LighthouseManagerTest extends TestCase
 
         unlink($binary);
         rmdir($tmpDir);
+    }
+
+    // --- getBinaryVersion() ---
+
+    public function testGetBinaryVersionReturnsNullForMissingBinary(): void
+    {
+        $version = $this->callMethod('getBinaryVersion', '/nonexistent/lighthouse');
+
+        $this->assertNull($version);
     }
 
     // --- install() ---

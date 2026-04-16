@@ -6,6 +6,7 @@ namespace Myerscode\Beacon\Tests;
 
 use Myerscode\Beacon\Browser;
 use PHPUnit\Framework\TestCase;
+use ReflectionProperty;
 
 final class BrowserTest extends TestCase
 {
@@ -61,7 +62,7 @@ final class BrowserTest extends TestCase
 
         // After quit, creating a new visit flow should work — driver manager is null
         // Verify by checking that a fresh driver would be created (no exception thrown)
-        $reflection = new \ReflectionProperty(Browser::class, 'chromeDriverManager');
+        $reflection = new ReflectionProperty(Browser::class, 'chromeDriverManager');
         $this->assertNull($reflection->getValue($browser));
     }
 
