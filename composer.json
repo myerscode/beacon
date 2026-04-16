@@ -72,7 +72,7 @@
         "lint":               "vendor/bin/pint",
         "analyse":            "vendor/bin/phpstan analyse",
         "tests":              "vendor/bin/phpunit --testdox --no-coverage --colors=always",
-        "test-coverage":      "vendor/bin/phpunit --testdox --colors=always",
+        "test-coverage":      "XDEBUG_MODE=coverage vendor/bin/phpunit --coverage-text --colors=always",
         "security-audit":     "@composer audit"
     }
 }
