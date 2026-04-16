@@ -124,7 +124,7 @@ class Spider
      * @param array<int, array{url: string, depth: int, source: string}> $queue
      * @param array<string, bool>                                        $queued
      */
-    private function enqueueLinks(array $newLinks, array $item, array &$queue, array &$queued): void
+    protected function enqueueLinks(array $newLinks, array $item, array &$queue, array &$queued): void
     {
         foreach ($newLinks as $newLink) {
             $normalized = $this->normalizeUrl($newLink['url']);
@@ -177,7 +177,7 @@ class Spider
      *
      * @return array<int, array{url: string}>
      */
-    private function extractLinksFromHtml(string $html, string $pageUrl): array
+    protected function extractLinksFromHtml(string $html, string $pageUrl): array
     {
         /** @var array<int, array{url: string}> $links */
         $links = [];
@@ -195,7 +195,7 @@ class Spider
         return $links;
     }
 
-    private function getDirectoryPath(string $url): string
+    protected function getDirectoryPath(string $url): string
     {
         $parsed = parse_url($url);
         $path   = $parsed['path'] ?? '/';
@@ -218,7 +218,7 @@ class Spider
         }
     }
 
-    private function isInternal(string $url): bool
+    protected function isInternal(string $url): bool
     {
         $parsed = parse_url($url);
         $host   = $parsed['host'] ?? '';
@@ -226,7 +226,7 @@ class Spider
         return $host === $this->baseHost;
     }
 
-    private function normalizeUrl(string $url): string
+    protected function normalizeUrl(string $url): string
     {
         return $this->stripFragment(rtrim($url, '/'));
     }
@@ -297,7 +297,7 @@ class Spider
         }
     }
 
-    private function resolveUrl(string $href, string $currentPageUrl): string
+    protected function resolveUrl(string $href, string $currentPageUrl): string
     {
         $href = trim($href);
 
@@ -416,9 +416,4 @@ class Spider
 
         return $links;
     }
-
-    /**
-     * @return array<int, array{url: string}>
-     */
-
 }
