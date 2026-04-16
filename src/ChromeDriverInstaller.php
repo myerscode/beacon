@@ -181,7 +181,7 @@ class ChromeDriverInstaller
         return null;
     }
 
-    private function binaryName(): string
+    protected function binaryName(): string
     {
         return PHP_OS_FAMILY === 'Windows' ? 'chromedriver.exe' : 'chromedriver';
     }
@@ -308,7 +308,7 @@ class ChromeDriverInstaller
         return null;
     }
 
-    private function platform(): string
+    protected function platform(): string
     {
         $os   = PHP_OS_FAMILY;
         $arch = php_uname('m');
@@ -365,7 +365,7 @@ class ChromeDriverInstaller
         return [$this->resolveLegacyDownloadUrl($chromeMajor, $platform), null];
     }
 
-    private function resolveDriversDir(?string $dir = null): string
+    protected function resolveDriversDir(?string $dir = null): string
     {
         $dir = $dir ?? self::DRIVERS_DIR;
 

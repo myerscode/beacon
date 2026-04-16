@@ -264,7 +264,7 @@ class DependencyChecker
     /**
      * Check Chrome and ChromeDriver major versions match.
      */
-    private function versionCompatibility(DependencyCheck $chrome, DependencyCheck $chromeDriver): ?DependencyCheck
+    protected function versionCompatibility(DependencyCheck $chrome, DependencyCheck $chromeDriver): ?DependencyCheck
     {
         if (!$chrome->found || !$chromeDriver->found || $chrome->version === null || $chromeDriver->version === null) {
             return null;

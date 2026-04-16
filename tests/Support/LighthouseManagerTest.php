@@ -7,16 +7,53 @@ namespace Myerscode\Beacon\Tests\Support;
 use Myerscode\Beacon\Support\InstallationResult;
 use Myerscode\Beacon\Support\LighthouseManager;
 use PHPUnit\Framework\TestCase;
-use ReflectionMethod;
 use RuntimeException;
+
+class TestableLighthouseManager extends LighthouseManager
+{
+    public function callFindNpm(): string
+    {
+        return $this->findNpm();
+    }
+
+    public function callFindLighthouse(): ?string
+    {
+        return $this->findLighthouse();
+    }
+
+    public function callGetBinaryVersion(string $binary): ?string
+    {
+        return $this->getBinaryVersion($binary);
+    }
+}
 
 final class LighthouseManagerTest extends TestCase
 {
+    private TestableLighthouseManager $manager;
+
+    protected function setUp(): void
+    {
+        $this->manager = new TestableLighthouseManager();
+    }
+
+    // --- findNpm() ---
+
+    public function testFindNpmReturnsStringOrThrows(): void
+    {
+        try {
+            $npm = $this->manager->callFindNpm();
+            $this->assertIsString($npm);
+            $this->assertNotEmpty($npm);
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('npm not found', $e->getMessage());
+        }
+    }
+
     // --- findLighthouse() ---
 
     public function testFindLighthouseReturnsNullOrString(): void
     {
-        $result = $this->callMethod('findLighthouse');
+        $result = $this->manager->callFindLighthouse();
 
         if ($result !== null) {
             $this->assertIsString($result);
@@ -25,17 +62,12 @@ final class LighthouseManagerTest extends TestCase
             $this->assertNull($result);
         }
     }
-    // --- findNpm() ---
 
-    public function testFindNpmReturnsStringOrThrows(): void
+    // --- getBinaryVersion() ---
+
+    public function testGetBinaryVersionReturnsNullForMissingBinary(): void
     {
-        try {
-            $npm = $this->callMethod('findNpm');
-            $this->assertIsString($npm);
-            $this->assertNotEmpty($npm);
-        } catch (RuntimeException $e) {
-            $this->assertStringContainsString('npm not found', $e->getMessage());
-        }
+        $this->assertNull($this->manager->callGetBinaryVersion('/nonexistent/lighthouse'));
     }
 
     public function testGetBinaryVersionParsesOutput(): void
@@ -51,21 +83,10 @@ final class LighthouseManagerTest extends TestCase
         file_put_contents($binary, "#!/bin/sh\necho '12.3.0'\n");
         chmod($binary, 0755);
 
-        $version = $this->callMethod('getBinaryVersion', $binary);
-
-        $this->assertSame('12.3.0', $version);
+        $this->assertSame('12.3.0', $this->manager->callGetBinaryVersion($binary));
 
         unlink($binary);
         rmdir($tmpDir);
-    }
-
-    // --- getBinaryVersion() ---
-
-    public function testGetBinaryVersionReturnsNullForMissingBinary(): void
-    {
-        $version = $this->callMethod('getBinaryVersion', '/nonexistent/lighthouse');
-
-        $this->assertNull($version);
     }
 
     // --- install() ---
@@ -110,14 +131,5 @@ final class LighthouseManagerTest extends TestCase
         $this->assertInstanceOf(InstallationResult::class, $result);
         $this->assertSame(InstallationResult::STATUS_NOTHING, $result->status);
         $this->assertStringContainsStringIgnoringCase('not installed', $result->summary);
-    }
-
-    // --- helper ---
-
-    private function callMethod(string $method, mixed ...$args): mixed
-    {
-        $ref = new ReflectionMethod(LighthouseManager::class, $method);
-
-        return $ref->invoke(new LighthouseManager(), ...$args);
     }
 }

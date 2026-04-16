@@ -107,7 +107,7 @@ class LighthouseManager
         return null;
     }
 
-    private function findNpm(): string
+    protected function findNpm(): string
     {
         $command = PHP_OS_FAMILY === 'Windows' ? 'where' : 'which';
         $output  = [];

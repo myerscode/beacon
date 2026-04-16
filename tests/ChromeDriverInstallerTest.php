@@ -7,15 +7,40 @@ namespace Myerscode\Beacon\Tests;
 use Myerscode\Beacon\ChromeDriverInstaller;
 use Myerscode\Beacon\Support\InstallationResult;
 use PHPUnit\Framework\TestCase;
-use ReflectionMethod;
+
+class TestableChomeDriverInstaller extends ChromeDriverInstaller
+{
+    public function callBinaryName(): string
+    {
+        return $this->binaryName();
+    }
+
+    public function callPlatform(): string
+    {
+        return $this->platform();
+    }
+
+    public function callResolveDriversDir(?string $dir = null): string
+    {
+        return $this->resolveDriversDir($dir);
+    }
+
+    public function callGetBinaryVersion(string $binary): ?string
+    {
+        return $this->getBinaryVersion($binary);
+    }
+}
 
 final class ChromeDriverInstallerTest extends TestCase
 {
+    private TestableChomeDriverInstaller $installer;
+
     private string $tmpDir;
 
     protected function setUp(): void
     {
-        $this->tmpDir = sys_get_temp_dir() . '/beacon_test_drivers_' . uniqid();
+        $this->installer = new TestableChomeDriverInstaller();
+        $this->tmpDir    = sys_get_temp_dir() . '/beacon_test_drivers_' . uniqid();
         mkdir($this->tmpDir, 0755, true);
     }
 
@@ -28,34 +53,26 @@ final class ChromeDriverInstallerTest extends TestCase
 
     public function testBinaryNameIsCorrectForCurrentOs(): void
     {
-        $name     = $this->callMethod('binaryName');
         $expected = PHP_OS_FAMILY === 'Windows' ? 'chromedriver.exe' : 'chromedriver';
 
-        $this->assertSame($expected, $name);
+        $this->assertSame($expected, $this->installer->callBinaryName());
     }
 
-    public function testCleanIsNoopWhenNoBinaryPresent(): void
-    {
-        $result = (new ChromeDriverInstaller())->clean($this->tmpDir);
+    // --- platform() ---
 
-        $this->assertInstanceOf(InstallationResult::class, $result);
-        $this->assertSame(InstallationResult::STATUS_NOTHING, $result->status);
-        $this->assertStringContainsString('nothing to clean', $result->summary);
+    public function testPlatformReturnsKnownValue(): void
+    {
+        $this->assertContains(
+            $this->installer->callPlatform(),
+            ['linux64', 'mac-x64', 'mac-arm64', 'win32', 'win64'],
+        );
     }
 
-    // --- clean() ---
+    // --- getBinaryVersion() ---
 
-    public function testCleanRemovesBinary(): void
+    public function testGetBinaryVersionReturnsNullForMissingBinary(): void
     {
-        $binary = $this->tmpDir . DIRECTORY_SEPARATOR . $this->binaryName();
-        file_put_contents($binary, 'fake binary');
-
-        $result = (new ChromeDriverInstaller())->clean($this->tmpDir);
-
-        $this->assertInstanceOf(InstallationResult::class, $result);
-        $this->assertSame(InstallationResult::STATUS_REMOVED, $result->status);
-        $this->assertStringContainsString('removed', $result->summary);
-        $this->assertFileDoesNotExist($binary);
+        $this->assertNull($this->installer->callGetBinaryVersion('/nonexistent/path/chromedriver'));
     }
 
     public function testGetBinaryVersionParsesVersionOutput(): void
@@ -67,18 +84,63 @@ final class ChromeDriverInstallerTest extends TestCase
         $binary = $this->tmpDir . DIRECTORY_SEPARATOR . 'fake_chromedriver';
         $this->writeFakeBinary($binary, 'ChromeDriver 120.0.6099.109');
 
-        $version = $this->callMethod('getBinaryVersion', $binary);
-
-        $this->assertSame('120.0.6099.109', $version);
+        $this->assertSame('120.0.6099.109', $this->installer->callGetBinaryVersion($binary));
     }
 
-    // --- getBinaryVersion() ---
+    // --- resolveDriversDir() ---
 
-    public function testGetBinaryVersionReturnsNullForMissingBinary(): void
+    public function testResolveDriversDirCreatesDirectoryIfMissing(): void
     {
-        $version = $this->callMethod('getBinaryVersion', '/nonexistent/path/chromedriver');
+        $newDir = $this->tmpDir . '/subdir_' . uniqid();
+        $this->assertDirectoryDoesNotExist($newDir);
 
-        $this->assertNull($version);
+        $this->installer->callResolveDriversDir($newDir);
+
+        $this->assertDirectoryExists($newDir);
+    }
+
+    public function testResolveDriversDirReturnsExistingDir(): void
+    {
+        $this->assertSame($this->tmpDir, $this->installer->callResolveDriversDir($this->tmpDir));
+    }
+
+    // --- clean() ---
+
+    public function testCleanRemovesBinary(): void
+    {
+        $binary = $this->tmpDir . DIRECTORY_SEPARATOR . $this->binaryName();
+        file_put_contents($binary, 'fake binary');
+
+        $result = $this->installer->clean($this->tmpDir);
+
+        $this->assertInstanceOf(InstallationResult::class, $result);
+        $this->assertSame(InstallationResult::STATUS_REMOVED, $result->status);
+        $this->assertStringContainsString('removed', $result->summary);
+        $this->assertFileDoesNotExist($binary);
+    }
+
+    public function testCleanIsNoopWhenNoBinaryPresent(): void
+    {
+        $result = $this->installer->clean($this->tmpDir);
+
+        $this->assertInstanceOf(InstallationResult::class, $result);
+        $this->assertSame(InstallationResult::STATUS_NOTHING, $result->status);
+        $this->assertStringContainsString('nothing to clean', $result->summary);
+    }
+
+    // --- getChromeVersion() ---
+
+    public function testGetChromeVersionReturnsVersionWhenChromeFound(): void
+    {
+        $installer = $this->getMockBuilder(ChromeDriverInstaller::class)
+            ->onlyMethods(['getBinaryVersion'])
+            ->getMock();
+
+        $installer->expects($this->atLeastOnce())
+            ->method('getBinaryVersion')
+            ->willReturn('120.0.6099.109');
+
+        $this->assertSame('120.0.6099.109', $installer->getChromeVersion());
     }
 
     public function testGetChromeVersionReturnsNullWhenNoChromeFound(): void
@@ -94,52 +156,7 @@ final class ChromeDriverInstallerTest extends TestCase
         $this->assertNull($installer->getChromeVersion());
     }
 
-    // --- getChromeVersion() ---
-
-    public function testGetChromeVersionReturnsVersionWhenChromeFound(): void
-    {
-        $installer = $this->getMockBuilder(ChromeDriverInstaller::class)
-            ->onlyMethods(['getBinaryVersion'])
-            ->getMock();
-
-        $installer->expects($this->atLeastOnce())
-            ->method('getBinaryVersion')
-            ->willReturn('120.0.6099.109');
-
-        $version = $installer->getChromeVersion();
-
-        $this->assertSame('120.0.6099.109', $version);
-    }
-
-    public function testInstallProceedsWhenVersionMismatches(): void
-    {
-        $installer = $this->getMockBuilder(ChromeDriverInstaller::class)
-            ->onlyMethods(['getBinaryVersion', 'getChromeVersion', 'download'])
-            ->getMock();
-
-        $installer->expects($this->atLeastOnce())
-            ->method('getBinaryVersion')
-            ->willReturn('119.0.0.0');
-
-        $installer->expects($this->atLeastOnce())
-            ->method('getChromeVersion')
-            ->willReturn('120.0.6099.109');
-
-        $installer->expects($this->once())
-            ->method('download')
-            ->with($this->tmpDir)
-            ->willReturn(InstallationResult::success('ChromeDriver installed'));
-
-        $binary = $this->tmpDir . DIRECTORY_SEPARATOR . $this->binaryName();
-        file_put_contents($binary, 'fake binary');
-
-        $result = $installer->install(force: false, driversDir: $this->tmpDir);
-
-        $this->assertTrue($result->successful());
-        $this->assertNotSame(InstallationResult::STATUS_SKIPPED, $result->status);
-    }
-
-    // --- install() skip logic ---
+    // --- install() ---
 
     public function testInstallSkipsWhenVersionAlreadyMatchesChrome(): void
     {
@@ -185,46 +202,49 @@ final class ChromeDriverInstallerTest extends TestCase
         $this->assertNotSame(InstallationResult::STATUS_SKIPPED, $result->status);
     }
 
-    // --- platform() ---
-
-    public function testPlatformReturnsKnownValue(): void
+    public function testInstallProceedsWhenVersionMismatches(): void
     {
-        $platform = $this->callMethod('platform');
+        $installer = $this->getMockBuilder(ChromeDriverInstaller::class)
+            ->onlyMethods(['getBinaryVersion', 'getChromeVersion', 'download'])
+            ->getMock();
 
-        $this->assertContains($platform, ['linux64', 'mac-x64', 'mac-arm64', 'win32', 'win64']);
+        $installer->expects($this->atLeastOnce())
+            ->method('getBinaryVersion')
+            ->willReturn('119.0.0.0');
+
+        $installer->expects($this->atLeastOnce())
+            ->method('getChromeVersion')
+            ->willReturn('120.0.6099.109');
+
+        $installer->expects($this->once())
+            ->method('download')
+            ->with($this->tmpDir)
+            ->willReturn(InstallationResult::success('ChromeDriver installed'));
+
+        $binary = $this->tmpDir . DIRECTORY_SEPARATOR . $this->binaryName();
+        file_put_contents($binary, 'fake binary');
+
+        $result = $installer->install(force: false, driversDir: $this->tmpDir);
+
+        $this->assertTrue($result->successful());
+        $this->assertNotSame(InstallationResult::STATUS_SKIPPED, $result->status);
     }
 
-    // --- resolveDriversDir() ---
-
-    public function testResolveDriversDirCreatesDirectoryIfMissing(): void
-    {
-        $newDir = $this->tmpDir . '/subdir_' . uniqid();
-        $this->assertDirectoryDoesNotExist($newDir);
-
-        $this->callMethod('resolveDriversDir', $newDir);
-
-        $this->assertDirectoryExists($newDir);
-    }
-
-    public function testResolveDriversDirReturnsExistingDir(): void
-    {
-        $result = $this->callMethod('resolveDriversDir', $this->tmpDir);
-
-        $this->assertSame($this->tmpDir, $result);
-    }
+    // --- helpers ---
 
     private function binaryName(): string
     {
         return PHP_OS_FAMILY === 'Windows' ? 'chromedriver.exe' : 'chromedriver';
     }
 
-    // --- helpers ---
-
-    private function callMethod(string $method, mixed ...$args): mixed
+    private function writeFakeBinary(string $path, string $versionOutput): void
     {
-        $ref = new ReflectionMethod(ChromeDriverInstaller::class, $method);
-
-        return $ref->invoke(new ChromeDriverInstaller(), ...$args);
+        if (PHP_OS_FAMILY === 'Windows') {
+            file_put_contents($path, "@echo off\necho {$versionOutput}\n");
+        } else {
+            file_put_contents($path, "#!/bin/sh\necho '{$versionOutput}'\n");
+            chmod($path, 0755);
+        }
     }
 
     private function removeDirectory(string $dir): void
@@ -243,15 +263,5 @@ final class ChromeDriverInstallerTest extends TestCase
         }
 
         rmdir($dir);
-    }
-
-    private function writeFakeBinary(string $path, string $versionOutput): void
-    {
-        if (PHP_OS_FAMILY === 'Windows') {
-            file_put_contents($path, "@echo off\necho {$versionOutput}\n");
-        } else {
-            file_put_contents($path, "#!/bin/sh\necho '{$versionOutput}'\n");
-            chmod($path, 0755);
-        }
     }
 }
