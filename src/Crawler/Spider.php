@@ -200,10 +200,14 @@ class Spider
         $parsed = parse_url($url);
         $path   = $parsed['path'] ?? '/';
 
-        // Get directory portion of the path
-        $dir = dirname($path);
+        // Get directory portion of the path (URL paths always use forward slashes)
+        $lastSlash = strrpos($path, '/');
 
-        return $dir === '.' ? '/' : $dir;
+        if ($lastSlash === false || $lastSlash === 0) {
+            return '/';
+        }
+
+        return substr($path, 0, $lastSlash);
     }
 
     private function getStatusCode(Client $client): int
