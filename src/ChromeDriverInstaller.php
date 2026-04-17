@@ -124,8 +124,8 @@ class ChromeDriverInstaller
         $chromeVersion = $this->getChromeVersion();
 
         if ($chromeVersion === null) {
-            throw new RuntimeException(
-                'Could not detect Chrome version. Ensure Chrome or Chromium is installed.',
+            return InstallationResult::skipped(
+                'Chrome or Chromium not detected. Skipping ChromeDriver installation.',
             );
         }
 
@@ -173,6 +173,12 @@ class ChromeDriverInstaller
             return null;
         }
 
+        // On Windows, Chrome is a GUI app that doesn't support --version.
+        // Read the version from the file's product version metadata instead.
+        if (PHP_OS_FAMILY === 'Windows' && str_ends_with(strtolower($binary), 'chrome.exe')) {
+            return $this->getWindowsFileVersion($binary);
+        }
+
         try {
             $process = new Process([$binary, '--version']);
             $process->setTimeout(5);
@@ -189,6 +195,31 @@ class ChromeDriverInstaller
             }
         } catch (\Throwable) {
             // Binary not runnable
+        }
+
+        return null;
+    }
+
+    /**
+     * Read the product version from a Windows executable using PowerShell.
+     */
+    private function getWindowsFileVersion(string $binary): ?string
+    {
+        try {
+            $process = new Process([
+                'powershell', '-NoProfile', '-Command',
+                sprintf('(Get-Item "%s").VersionInfo.ProductVersion', $binary),
+            ]);
+            $process->setTimeout(5);
+            $process->run();
+
+            $output = trim($process->getOutput());
+
+            if (preg_match('/(\d+\.\d+[\.\d]*)/', $output, $matches)) {
+                return $matches[1];
+            }
+        } catch (\Throwable) {
+            // PowerShell not available or failed
         }
 
         return null;

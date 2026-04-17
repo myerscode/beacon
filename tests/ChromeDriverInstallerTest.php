@@ -158,6 +158,36 @@ final class ChromeDriverInstallerTest extends TestCase
 
     // --- install() ---
 
+    public function testInstallSkipsWhenChromeNotDetected(): void
+    {
+        $installer = $this->getMockBuilder(ChromeDriverInstaller::class)
+            ->onlyMethods(['getChromeVersion', 'getBinaryVersion'])
+            ->getMock();
+
+        $installer->method('getChromeVersion')->willReturn(null);
+        $installer->method('getBinaryVersion')->willReturn(null);
+
+        $result = $installer->install(force: false, driversDir: $this->tmpDir);
+
+        $this->assertSame(InstallationResult::STATUS_SKIPPED, $result->status);
+        $this->assertStringContainsString('not detected', $result->summary);
+    }
+
+    public function testUpdateSkipsWhenChromeNotDetected(): void
+    {
+        $installer = $this->getMockBuilder(ChromeDriverInstaller::class)
+            ->onlyMethods(['getChromeVersion', 'getBinaryVersion'])
+            ->getMock();
+
+        $installer->method('getChromeVersion')->willReturn(null);
+        $installer->method('getBinaryVersion')->willReturn(null);
+
+        $result = $installer->update($this->tmpDir);
+
+        $this->assertSame(InstallationResult::STATUS_SKIPPED, $result->status);
+        $this->assertStringContainsString('not detected', $result->summary);
+    }
+
     public function testInstallSkipsWhenVersionAlreadyMatchesChrome(): void
     {
         $installer = $this->getMockBuilder(ChromeDriverInstaller::class)
