@@ -30,8 +30,13 @@ jobs:
           extensions: curl, dom, json, mbstring, xml, zip
       - name: Install dependencies
         run: composer install --prefer-dist --no-progress --no-interaction --no-scripts
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
       - name: Run unit tests
-        run: vendor/bin/phpunit --testdox --no-coverage --exclude-group=integration
+        timeout-minutes: 5
+        run: vendor/bin/phpunit --testdox --debug --no-coverage --exclude-group=integration
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
 
   integration:
     runs-on: ${{ matrix.os }}
@@ -52,10 +57,20 @@ jobs:
           php-version: ${{ matrix.php-versions }}
           extensions: curl, dom, json, mbstring, xml, zip
       - name: Setup Chrome
+        id: chrome
         uses: browser-actions/setup-chrome@v1
         with:
           chrome-version: stable
       - name: Install dependencies
-        run: composer install --prefer-dist --no-progress --no-interaction
+        run: composer install --prefer-dist --no-progress --no-interaction --no-scripts
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+      - name: Install ChromeDriver
+        run: composer run driver:install
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
       - name: Run integration tests
-        run: vendor/bin/phpunit --testdox --no-coverage --group=integration
+        timeout-minutes: 5
+        run: vendor/bin/phpunit --testdox --debug --no-coverage --group=integration
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}

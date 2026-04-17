@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Myerscode\Beacon\Support;
 
+use Symfony\Component\Process\ExecutableFinder;
+use Symfony\Component\Process\Process;
+
 class DependencyChecker
 {
     /**
@@ -161,7 +164,8 @@ class DependencyChecker
     }
 
     /**
-     * Find a binary by name using which (Unix) or where (Windows).
+     * Find a binary by name using Symfony's ExecutableFinder (cross-platform,
+     * no shell spawning, no interactive prompts on Windows).
      *
      * @param string[] $names
      * @param string[] $extraPaths
@@ -179,16 +183,13 @@ class DependencyChecker
             }
         }
 
-        $command = $this->isWindows() ? 'where' : 'which';
+        $finder = new ExecutableFinder();
 
         foreach ($names as $name) {
-            $output = [];
-            $code   = 0;
+            $path = $finder->find($name);
 
-            @exec(sprintf('%s %s 2>/dev/null', $command, $name), $output, $code);
-
-            if ($code === 0 && isset($output[0]) && $output[0] !== '') {
-                return trim($output[0]);
+            if ($path !== null) {
+                return $path;
             }
         }
 
@@ -196,23 +197,27 @@ class DependencyChecker
     }
 
     /**
-     * Get the version string from a binary.
+     * Get the version string from a binary using Symfony Process —
+     * no shell spawning, no interactive prompts on Windows.
      */
     private function getVersion(string $binary): ?string
     {
-        $output = [];
-        $code   = 0;
+        try {
+            $process = new Process([$binary, '--version']);
+            $process->setTimeout(5);
+            $process->run();
 
-        @exec('"' . $binary . '" --version 2>/dev/null', $output, $code);
-        if ($code !== 0) {
-            return null;
-        }
-        if (!isset($output[0])) {
-            return null;
-        }
-        // Extract version number from output like "Google Chrome 120.0.6099.109" or "ChromeDriver 120.0.6099.109"
-        if (preg_match('/(\d+\.\d+[\.\d]*)/', $output[0], $matches)) {
-            return $matches[1];
+            if (!$process->isSuccessful()) {
+                return null;
+            }
+
+            $output = trim($process->getOutput());
+
+            if (preg_match('/(\d+\.\d+[\.\d]*)/', $output, $matches)) {
+                return $matches[1];
+            }
+        } catch (\Throwable) {
+            // Binary not runnable
         }
 
         return null;

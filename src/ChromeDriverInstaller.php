@@ -6,6 +6,8 @@ namespace Myerscode\Beacon;
 
 use Myerscode\Beacon\Support\InstallationResult;
 use RuntimeException;
+use Symfony\Component\Process\ExecutableFinder;
+use Symfony\Component\Process\Process;
 use ZipArchive;
 
 /**
@@ -19,6 +21,14 @@ class ChromeDriverInstaller
     private const CHROME_FOR_TESTING_VERSIONS_URL = 'https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json';
 
     private const CHROMEDRIVER_LATEST_URL = 'https://chromedriver.storage.googleapis.com/LATEST_RELEASE';
+
+    /**
+     * Create a new instance of the installer.
+     */
+    public static function make(): static
+    {
+        return new static();
+    }
 
     /**
      * Remove the ChromeDriver binary from the drivers directory.
@@ -54,17 +64,15 @@ class ChromeDriverInstaller
             }
         }
 
-        // Fallback: try which/where
-        $names   = ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser', 'chrome'];
-        $command = PHP_OS_FAMILY === 'Windows' ? 'where' : 'which';
+        // Fallback: try ExecutableFinder (cross-platform, no shell spawning)
+        $finder = new ExecutableFinder();
+        $names  = ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser', 'chrome'];
 
         foreach ($names as $name) {
-            $output = [];
-            $code   = 0;
-            @exec(sprintf('%s %s 2>/dev/null', $command, $name), $output, $code);
+            $found = $finder->find($name);
 
-            if ($code === 0 && isset($output[0]) && $output[0] !== '') {
-                $version = $this->getBinaryVersion(trim($output[0]));
+            if ($found !== null) {
+                $version = $this->getBinaryVersion($found);
 
                 if ($version !== null) {
                     return $version;
@@ -161,21 +169,26 @@ class ChromeDriverInstaller
 
     protected function getBinaryVersion(string $binary): ?string
     {
-        if (!file_exists($binary) && !is_executable($binary)) {
+        if (!file_exists($binary)) {
             return null;
         }
 
-        $output = [];
-        $code   = 0;
+        try {
+            $process = new Process([$binary, '--version']);
+            $process->setTimeout(5);
+            $process->run();
 
-        @exec('"' . $binary . '" --version 2>/dev/null', $output, $code);
+            if (!$process->isSuccessful()) {
+                return null;
+            }
 
-        if ($code !== 0 || !isset($output[0])) {
-            return null;
-        }
+            $output = trim($process->getOutput());
 
-        if (preg_match('/(\d+\.\d+[\.\d]*)/', $output[0], $matches)) {
-            return $matches[1];
+            if (preg_match('/(\d+\.\d+[\.\d]*)/', $output, $matches)) {
+                return $matches[1];
+            }
+        } catch (\Throwable) {
+            // Binary not runnable
         }
 
         return null;

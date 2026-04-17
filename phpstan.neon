@@ -2,3 +2,8 @@ parameters:
     level: 8
     paths:
         - src
+    ignoreErrors:
+        -
+            identifier: new.static
+            paths:
+                - src/ChromeDriverInstaller.php

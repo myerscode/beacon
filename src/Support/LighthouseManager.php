@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Myerscode\Beacon\Support;
 
 use RuntimeException;
+use Symfony\Component\Process\ExecutableFinder;
+use Symfony\Component\Process\Process;
 
 /**
  * Manages installing, updating, and removing the Lighthouse CLI via npm.
@@ -76,32 +78,23 @@ class LighthouseManager
 
     protected function findLighthouse(): ?string
     {
-        $command = PHP_OS_FAMILY === 'Windows' ? 'where' : 'which';
-        $output  = [];
-        $code    = 0;
-
-        @exec(sprintf('%s lighthouse 2>/dev/null', $command), $output, $code);
-
-        if ($code === 0 && isset($output[0]) && $output[0] !== '') {
-            return trim($output[0]);
-        }
-
-        return null;
+        return (new ExecutableFinder())->find('lighthouse');
     }
 
     protected function getBinaryVersion(string $binary): ?string
     {
-        $output = [];
-        $code   = 0;
+        try {
+            $process = new Process([$binary, '--version']);
+            $process->setTimeout(5);
+            $process->run();
 
-        @exec('"' . $binary . '" --version 2>/dev/null', $output, $code);
+            $output = trim($process->getOutput() ?: $process->getErrorOutput());
 
-        if ($code !== 0 || !isset($output[0])) {
-            return null;
-        }
-
-        if (preg_match('/(\d+\.\d+[\.\d]*)/', $output[0], $matches)) {
-            return $matches[1];
+            if (preg_match('/(\d+\.\d+[\.\d]*)/', $output, $matches)) {
+                return $matches[1];
+            }
+        } catch (\Throwable) {
+            // Binary not runnable
         }
 
         return null;
@@ -109,19 +102,15 @@ class LighthouseManager
 
     protected function findNpm(): string
     {
-        $command = PHP_OS_FAMILY === 'Windows' ? 'where' : 'which';
-        $output  = [];
-        $code    = 0;
+        $path = (new ExecutableFinder())->find('npm');
 
-        @exec(sprintf('%s npm 2>/dev/null', $command), $output, $code);
-
-        if ($code !== 0 || !isset($output[0]) || $output[0] === '') {
+        if ($path === null) {
             throw new RuntimeException(
                 'npm not found. Install Node.js from https://nodejs.org/ to manage Lighthouse.',
             );
         }
 
-        return trim($output[0]);
+        return $path;
     }
 
     /**
