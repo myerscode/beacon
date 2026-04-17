@@ -34,7 +34,7 @@ jobs:
           CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
       - name: Run unit tests
         timeout-minutes: 5
-        run: vendor/bin/phpunit --testdox --debug --no-coverage --exclude-group=integration
+        run: vendor/bin/phpunit --testdox --no-coverage --exclude-group=integration
         env:
           CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
 
@@ -61,16 +61,13 @@ jobs:
         uses: browser-actions/setup-chrome@v1
         with:
           chrome-version: stable
+      - name: Set CHROME_PATH
+        shell: bash
+        run: echo "CHROME_PATH=${{ steps.chrome.outputs.chrome-path }}" >> "$GITHUB_ENV"
       - name: Install dependencies
         run: composer install --prefer-dist --no-progress --no-interaction --no-scripts
-        env:
-          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
       - name: Install ChromeDriver
         run: composer run driver:install
-        env:
-          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
       - name: Run integration tests
         timeout-minutes: 5
-        run: vendor/bin/phpunit --testdox --debug --no-coverage --group=integration
-        env:
-          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+        run: vendor/bin/phpunit --testdox --no-coverage --group=integration
