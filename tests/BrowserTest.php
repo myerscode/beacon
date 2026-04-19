@@ -83,4 +83,11 @@ final class BrowserTest extends TestCase
 
         $this->assertSame($browser, $result);
     }
+
+    public function testVisitAllReturnsEmptyArrayForEmptyInput(): void
+    {
+        $browser = Browser::create();
+
+        $this->assertSame([], $browser->visitAll([]));
+    }
 }

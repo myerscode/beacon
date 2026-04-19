@@ -110,6 +110,100 @@ class Browser
     }
 
     /**
+     * Visit multiple URLs concurrently and return a Page for each.
+     *
+     * Each URL gets its own Chrome session on the shared ChromeDriver process.
+     * Pages are returned in the same order as the input URLs.
+     *
+     * @param string[] $urls
+     * @param int      $concurrency Max number of Chrome sessions to run in parallel
+     * @return Page[]
+     */
+    public function visitAll(array $urls, int $concurrency = 5): array
+    {
+        if ($urls === []) {
+            return [];
+        }
+
+        $driver  = $this->getDriver();
+        $timeout = $this->waitTimeout;
+
+        // Create one client per concurrent slot
+        $slotCount = min($concurrency, count($urls));
+        $clients   = [];
+
+        for ($i = 0; $i < $slotCount; $i++) {
+            $clients[] = new ClientAdapter($driver->createClient());
+        }
+
+        /** @var array<int, Page|null> $results indexed by original URL position */
+        $results = array_fill(0, count($urls), null);
+
+        /** @var array<int, array{index: int, url: string}> $queue */
+        $queue = [];
+
+        foreach ($urls as $index => $url) {
+            $queue[] = ['index' => $index, 'url' => $url];
+        }
+
+        /** @var array<int, \Fiber> $fibers keyed by client slot */
+        $fibers = [];
+
+        /** @var array<int, int> $fiberIndex maps slot to original URL index */
+        $fiberIndex = [];
+
+        /** @var array<int, bool> $available */
+        $available = array_fill(0, $slotCount, true);
+
+        while ($queue !== [] || $fibers !== []) {
+            // Fill available slots
+            foreach ($available as $slot => $free) {
+                if (!$free || $queue === []) {
+                    continue;
+                }
+
+                $item   = array_shift($queue);
+                $client = $clients[$slot];
+
+                $available[$slot]  = false;
+                $fiberIndex[$slot] = $item['index'];
+
+                $fibers[$slot] = new \Fiber(static function () use ($client, $item, $timeout): Page {
+                    $client->request('GET', $item['url']);
+                    $client->waitForPageReady($timeout);
+
+                    return new Page($client, $item['url']);
+                });
+
+                try {
+                    $fibers[$slot]->start();
+                } catch (\Throwable) {
+                    $available[$slot] = true;
+                    unset($fibers[$slot], $fiberIndex[$slot]);
+                }
+            }
+
+            // Tick active fibers
+            foreach ($fibers as $slot => $fiber) {
+                try {
+                    if ($fiber->isTerminated()) {
+                        $results[$fiberIndex[$slot]] = $fiber->getReturn();
+                        $available[$slot]            = true;
+                        unset($fibers[$slot], $fiberIndex[$slot]);
+                    } elseif ($fiber->isSuspended()) {
+                        $fiber->resume();
+                    }
+                } catch (\Throwable) {
+                    $available[$slot] = true;
+                    unset($fibers[$slot], $fiberIndex[$slot]);
+                }
+            }
+        }
+
+        return array_values(array_filter($results));
+    }
+
+    /**
      * Set the timeout for waiting on page loads (seconds).
      */
     public function waitTimeout(int $seconds): self
