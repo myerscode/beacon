@@ -112,8 +112,9 @@ class Browser
     /**
      * Visit multiple URLs concurrently and return a Page for each.
      *
-     * Each URL gets its own Chrome session on the shared ChromeDriver process.
-     * Pages are returned in the same order as the input URLs.
+     * Each URL gets its own Chrome session on the shared ChromeDriver process,
+     * so all returned Page objects are independently usable.
+     * Concurrency controls how many sessions load pages in parallel.
      *
      * @param string[] $urls
      * @param int      $concurrency Max number of Chrome sessions to run in parallel
@@ -128,12 +129,11 @@ class Browser
         $driver  = $this->getDriver();
         $timeout = $this->waitTimeout;
 
-        // Create one client per concurrent slot
-        $slotCount = min($concurrency, count($urls));
-        $clients   = [];
+        // Each URL gets its own client so Pages are independent
+        $urlClients = [];
 
-        for ($i = 0; $i < $slotCount; $i++) {
-            $clients[] = new ClientAdapter($driver->createClient());
+        foreach ($urls as $index => $url) {
+            $urlClients[$index] = new ClientAdapter($driver->createClient());
         }
 
         /** @var array<int, Page|null> $results indexed by original URL position */
@@ -146,7 +146,9 @@ class Browser
             $queue[] = ['index' => $index, 'url' => $url];
         }
 
-        /** @var array<int, \Fiber> $fibers keyed by client slot */
+        $slotCount = min($concurrency, count($urls));
+
+        /** @var array<int, \Fiber> $fibers keyed by slot */
         $fibers = [];
 
         /** @var array<int, int> $fiberIndex maps slot to original URL index */
@@ -163,7 +165,7 @@ class Browser
                 }
 
                 $item   = array_shift($queue);
-                $client = $clients[$slot];
+                $client = $urlClients[$item['index']];
 
                 $available[$slot]  = false;
                 $fiberIndex[$slot] = $item['index'];
