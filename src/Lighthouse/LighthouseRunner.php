@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Myerscode\Beacon\Lighthouse;
 
+use Myerscode\Beacon\ProcessFactory;
 use RuntimeException;
-use Symfony\Component\Process\Process;
 
 class LighthouseRunner
 {
@@ -17,9 +17,15 @@ class LighthouseRunner
     private string $chromePath = '';
 
     private string $formFactor = 'mobile';
+
     private string $lighthouseBinary = 'lighthouse';
 
     private int $timeout = 120;
+
+    public function __construct(
+        private readonly ?ProcessFactory $processFactory = null,
+    ) {
+    }
 
     /**
      * @param string[] $flags
@@ -90,7 +96,8 @@ class LighthouseRunner
             $env['CHROME_PATH'] = $this->chromePath;
         }
 
-        $process = new Process($command, null, $env !== [] ? $env : null);
+        $factory = $this->processFactory ?? new ProcessFactory();
+        $process = $factory->create($command, $env !== [] ? $env : null);
         $process->setTimeout($this->timeout);
         $process->run();
 

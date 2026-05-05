@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Myerscode\Beacon;
 
-use Symfony\Component\Panther\DomCrawler\Crawler;
+use Symfony\Component\DomCrawler\Crawler;
 
 /**
  * @internal

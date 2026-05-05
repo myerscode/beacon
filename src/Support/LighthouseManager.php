@@ -4,15 +4,22 @@ declare(strict_types=1);
 
 namespace Myerscode\Beacon\Support;
 
+use Myerscode\Beacon\ProcessFactory;
 use RuntimeException;
 use Symfony\Component\Process\ExecutableFinder;
-use Symfony\Component\Process\Process;
+use Throwable;
 
 /**
  * Manages installing, updating, and removing the Lighthouse CLI via npm.
  */
 class LighthouseManager
 {
+    public function __construct(
+        private readonly ?ExecutableFinder $executableFinder = null,
+        private readonly ?ProcessFactory $processFactory = null,
+    ) {
+    }
+
     /**
      * Install Lighthouse CLI globally via npm.
      * Skips if already installed.
@@ -78,31 +85,15 @@ class LighthouseManager
 
     protected function findLighthouse(): ?string
     {
-        return (new ExecutableFinder())->find('lighthouse');
-    }
+        $finder = $this->executableFinder ?? new ExecutableFinder();
 
-    protected function getBinaryVersion(string $binary): ?string
-    {
-        try {
-            $process = new Process([$binary, '--version']);
-            $process->setTimeout(5);
-            $process->run();
-
-            $output = trim($process->getOutput() ?: $process->getErrorOutput());
-
-            if (preg_match('/(\d+\.\d+[\.\d]*)/', $output, $matches)) {
-                return $matches[1];
-            }
-        } catch (\Throwable) {
-            // Binary not runnable
-        }
-
-        return null;
+        return $finder->find('lighthouse');
     }
 
     protected function findNpm(): string
     {
-        $path = (new ExecutableFinder())->find('npm');
+        $finder = $this->executableFinder ?? new ExecutableFinder();
+        $path   = $finder->find('npm');
 
         if ($path === null) {
             throw new RuntimeException(
@@ -113,24 +104,43 @@ class LighthouseManager
         return $path;
     }
 
+    protected function getBinaryVersion(string $binary): ?string
+    {
+        try {
+            $factory = $this->processFactory ?? new ProcessFactory();
+            $process = $factory->create([$binary, '--version']);
+            $process->setTimeout(5);
+            $process->run();
+
+            $output = trim($process->getOutput() ?: $process->getErrorOutput());
+
+            if (preg_match('/(\d+\.\d+[\.\d]*)/', $output, $matches)) {
+                return $matches[1];
+            }
+        } catch (Throwable) {
+            // Binary not runnable
+        }
+
+        return null;
+    }
+
     /**
      * @param string[] $args
      * @return string[]
      */
     private function runNpm(string $npm, array $args): array
     {
-        $cmd    = implode(' ', array_map('escapeshellarg', [$npm, ...$args]));
-        $output = [];
-        $code   = 0;
+        $factory = $this->processFactory ?? new ProcessFactory();
+        $process = $factory->create([$npm, ...$args]);
+        $process->setTimeout(120);
+        $process->run();
 
-        @exec($cmd . ' 2>&1', $output, $code);
-
-        if ($code !== 0) {
+        if (!$process->isSuccessful()) {
             throw new RuntimeException(
-                sprintf("npm command failed (exit %d):\n%s", $code, implode("\n", $output)),
+                sprintf("npm command failed (exit %d):\n%s", $process->getExitCode(), $process->getErrorOutput()),
             );
         }
 
-        return $output;
+        return array_filter(explode("\n", $process->getOutput()));
     }
 }

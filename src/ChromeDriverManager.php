@@ -8,7 +8,6 @@ use Facebook\WebDriver\Chrome\ChromeOptions;
 use Facebook\WebDriver\Remote\DesiredCapabilities;
 use RuntimeException;
 use Symfony\Component\Panther\Client;
-use Symfony\Component\Process\ExecutableFinder;
 use Symfony\Component\Process\Process;
 use Throwable;
 
@@ -40,12 +39,15 @@ class ChromeDriverManager
     public function __construct(
         private readonly array $chromeArguments = ['--headless=new', '--disable-gpu', '--no-sandbox', '--disable-dev-shm-usage'],
         ?string $chromeDriverBinary = null,
+        ?BinaryFinder $binaryFinder = null,
+        ?ProcessFactory $processFactory = null,
     ) {
         $this->port = random_int(10000, 60000);
 
-        $binary = $chromeDriverBinary ?? $this->findBinary();
+        $binary = $chromeDriverBinary ?? ($binaryFinder ?? new BinaryFinder())->find();
 
-        $this->process = new Process([$binary, '--port=' . $this->port], null, null, null, null);
+        $factory = $processFactory ?? new ProcessFactory();
+        $this->process = $factory->create([$binary, '--port=' . $this->port]);
         $this->process->start();
         $this->pid = $this->process->getPid();
 
@@ -140,19 +142,6 @@ class ChromeDriverManager
             self::$instances,
             fn (self $instance): bool => $instance !== $this,
         );
-    }
-
-    private function findBinary(): string
-    {
-        $binary = new ExecutableFinder()->find('chromedriver', null, ['./drivers']);
-
-        if ($binary === null) {
-            throw new RuntimeException(
-                '"chromedriver" binary not found. Run "composer run driver:install" to install it.',
-            );
-        }
-
-        return $binary;
     }
 
     private function killByPid(): void

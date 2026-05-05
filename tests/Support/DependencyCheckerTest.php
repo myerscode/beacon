@@ -41,15 +41,6 @@ final class DependencyCheckerTest extends TestCase
         $this->assertContainsOnlyInstancesOf(DependencyCheck::class, $results);
     }
 
-    public function testEachCheckHasMessage(): void
-    {
-        $results = (new DependencyChecker())->check();
-
-        foreach ($results as $result) {
-            $this->assertNotEmpty($result->message);
-        }
-    }
-
     // =========================================================================
     // Individual dependency checks
     // =========================================================================
@@ -70,20 +61,21 @@ final class DependencyCheckerTest extends TestCase
         $this->assertSame('ChromeDriver', $dependencyCheck->name);
     }
 
+    public function testEachCheckHasMessage(): void
+    {
+        $results = (new DependencyChecker())->check();
+
+        foreach ($results as $result) {
+            $this->assertNotEmpty($result->message);
+        }
+    }
+
     public function testLighthouseCheckReturnsDependencyCheck(): void
     {
         $dependencyCheck = (new DependencyChecker())->lighthouse();
 
         $this->assertInstanceOf(DependencyCheck::class, $dependencyCheck);
         $this->assertSame('Lighthouse', $dependencyCheck->name);
-    }
-
-    public function testNodeCheckReturnsDependencyCheck(): void
-    {
-        $dependencyCheck = (new DependencyChecker())->node();
-
-        $this->assertInstanceOf(DependencyCheck::class, $dependencyCheck);
-        $this->assertSame('Node.js', $dependencyCheck->name);
     }
 
     // =========================================================================
@@ -112,6 +104,14 @@ final class DependencyCheckerTest extends TestCase
         $this->assertNotNull($result);
         $this->assertFalse($result->ok());
         $this->assertStringContainsString('differ', $result->message);
+    }
+
+    public function testNodeCheckReturnsDependencyCheck(): void
+    {
+        $dependencyCheck = (new DependencyChecker())->node();
+
+        $this->assertInstanceOf(DependencyCheck::class, $dependencyCheck);
+        $this->assertSame('Node.js', $dependencyCheck->name);
     }
 
     public function testVersionCompatibilityReturnsNullWhenChromeNotFound(): void

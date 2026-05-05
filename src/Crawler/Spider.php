@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Myerscode\Beacon\Crawler;
 
-use Myerscode\Beacon\ChromeDriverManager;
-use Symfony\Component\Panther\Client;
-use Throwable;
+use Myerscode\Beacon\ClientFactory;
+use Myerscode\Beacon\ClientInterface;
 use Fiber;
+use Throwable;
 
 /**
  * @internal
@@ -19,11 +19,12 @@ class Spider
     private string $baseScheme = '';
 
     private string $baseUrl = '';
+
     private readonly CrawlResultCollection $crawlResultCollection;
 
     public function __construct(
         private readonly CrawlConfig $crawlConfig,
-        private readonly ChromeDriverManager $chromeDriverManager,
+        private readonly ClientFactory $clientFactory,
     ) {
         $this->crawlResultCollection = new CrawlResultCollection();
     }
@@ -70,6 +71,7 @@ class Spider
                 $externalResult = new CrawlResult($normalized, false, null, [$normalizedStart], 1);
                 $this->crawlResultCollection->add($externalResult);
                 $this->crawlConfig->notifyCrawled($normalized, $externalResult);
+
                 continue;
             }
 
@@ -95,10 +97,11 @@ class Spider
 
         $maxConcurrent = $this->crawlConfig->getMaxConcurrent();
 
-        /** @var Client[] $clients */
+        /** @var ClientInterface[] $clients */
         $clients = [];
+
         for ($i = 0; $i < $maxConcurrent; $i++) {
-            $clients[] = $this->chromeDriverManager->createClient();
+            $clients[] = $this->clientFactory->create();
         }
 
         try {
@@ -108,7 +111,7 @@ class Spider
                 try {
                     $client->quit();
                 } catch (Throwable) {
-                    // Driver manager owns the cleanup
+                    // Best effort cleanup
                 }
             }
         }
@@ -152,6 +155,7 @@ class Spider
 
             if (isset($queued[$normalized])) {
                 $existing = $this->crawlResultCollection->get($normalized);
+
                 if ($existing !== null) {
                     $this->crawlResultCollection->add($existing->withLinkedFrom($item['url']));
                 }
@@ -210,18 +214,6 @@ class Spider
         return substr($path, 0, $lastSlash);
     }
 
-    private function getStatusCode(Client $client): int
-    {
-        try {
-            /** @var int $code */
-            $code = $client->executeScript('return window.performance.getEntriesByType("navigation")[0]?.responseStatus || 200');
-
-            return (int) $code;
-        } catch (Throwable) {
-            return 200;
-        }
-    }
-
     protected function isInternal(string $url): bool
     {
         $parsed = parse_url($url);
@@ -235,10 +227,45 @@ class Spider
         return $this->stripFragment(rtrim($url, '/'));
     }
 
+    protected function resolveUrl(string $href, string $currentPageUrl): string
+    {
+        $href = trim($href);
+
+        // Skip non-http links
+        if (str_starts_with($href, 'mailto:')
+            || str_starts_with($href, 'tel:')
+            || str_starts_with($href, 'javascript:')
+            || str_starts_with($href, '#')
+            || $href === ''
+        ) {
+            return '';
+        }
+
+        // Protocol-relative
+        if (str_starts_with($href, '//')) {
+            return sprintf('%s:%s', $this->baseScheme, $href);
+        }
+
+        // Absolute URL
+        if (str_starts_with($href, 'http://') || str_starts_with($href, 'https://')) {
+            return $this->stripFragment($href);
+        }
+
+        // Root-relative
+        if (str_starts_with($href, '/')) {
+            return $this->stripFragment($this->baseUrl . $href);
+        }
+
+        // Relative URL — resolve against current page
+        $basePath = $this->getDirectoryPath($currentPageUrl);
+
+        return $this->stripFragment(sprintf('%s%s/%s', $this->baseUrl, $basePath, $href));
+    }
+
     /**
      * @param array<int, array{url: string, depth: int, source: string}> $queue
      * @param array<string, bool>                                        $queued
-     * @param Client[]                                                   $clients
+     * @param ClientInterface[]                                          $clients
      */
     private function processQueue(array &$queue, array &$queued, array $clients): void
     {
@@ -301,41 +328,6 @@ class Spider
         }
     }
 
-    protected function resolveUrl(string $href, string $currentPageUrl): string
-    {
-        $href = trim($href);
-
-        // Skip non-http links
-        if (str_starts_with($href, 'mailto:')
-            || str_starts_with($href, 'tel:')
-            || str_starts_with($href, 'javascript:')
-            || str_starts_with($href, '#')
-            || $href === ''
-        ) {
-            return '';
-        }
-
-        // Protocol-relative
-        if (str_starts_with($href, '//')) {
-            return sprintf('%s:%s', $this->baseScheme, $href);
-        }
-
-        // Absolute URL
-        if (str_starts_with($href, 'http://') || str_starts_with($href, 'https://')) {
-            return $this->stripFragment($href);
-        }
-
-        // Root-relative
-        if (str_starts_with($href, '/')) {
-            return $this->stripFragment($this->baseUrl . $href);
-        }
-
-        // Relative URL — resolve against current page
-        $basePath = $this->getDirectoryPath($currentPageUrl);
-
-        return $this->stripFragment(sprintf('%s%s/%s', $this->baseUrl, $basePath, $href));
-    }
-
     private function stripFragment(string $url): string
     {
         $pos = strpos($url, '#');
@@ -348,11 +340,11 @@ class Spider
      *
      * @return array<int, array{url: string}>
      */
-    private function visitPageAsync(Client $client, string $url, int $depth, string $source): array
+    private function visitPageAsync(ClientInterface $client, string $url, int $depth, string $source): array
     {
-        $statusCode = null;
-        $links      = [];
-        $attempts   = 0;
+        $statusCode  = null;
+        $links       = [];
+        $attempts    = 0;
         $maxAttempts = $this->crawlConfig->getMaxRetries() + 1;
 
         while ($attempts < $maxAttempts) {
@@ -368,27 +360,9 @@ class Spider
 
             try {
                 $client->request('GET', $url);
+                $client->waitForPageReady($this->crawlConfig->getTimeout());
 
-                $deadline = time() + $this->crawlConfig->getTimeout();
-
-                while (time() < $deadline) {
-                    /** @var array{ready: bool, hasContent: bool} $pageState */
-                    $pageState = $client->executeScript(
-                        'return { ready: document.readyState === "complete", hasContent: document.body.innerHTML.length > 0 }',
-                    );
-
-                    if ($pageState['ready'] && $pageState['hasContent']) {
-                        break;
-                    }
-
-                    if (time() >= $deadline) {
-                        break;
-                    }
-
-                    Fiber::suspend();
-                }
-
-                $statusCode = $this->getStatusCode($client);
+                $statusCode = $client->getStatusCode();
                 $html       = $client->getPageSource();
                 $links      = $this->extractLinksFromHtml($html, $url);
 

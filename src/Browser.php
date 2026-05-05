@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Myerscode\Beacon;
 
+use Fiber;
+use Throwable;
+
 class Browser
 {
     /**
@@ -17,9 +20,12 @@ class Browser
     ];
 
     private ?string $chromeDriverBinary = null;
+
     private ?ChromeDriverManager $chromeDriverManager = null;
 
     private ?ClientInterface $client = null;
+
+    private ?ClientFactory $clientFactory = null;
 
     private int $waitTimeout = 10;
 
@@ -67,6 +73,16 @@ class Browser
     public function chromeDriverBinary(string $path): self
     {
         $this->chromeDriverBinary = $path;
+
+        return $this;
+    }
+
+    /**
+     * Set a custom client factory for creating browser sessions.
+     */
+    public function clientFactory(ClientFactory $factory): self
+    {
+        $this->clientFactory = $factory;
 
         return $this;
     }
@@ -126,14 +142,14 @@ class Browser
             return [];
         }
 
-        $driver  = $this->getDriver();
+        $factory = $this->getClientFactory();
         $timeout = $this->waitTimeout;
 
         // Each URL gets its own client so Pages are independent
         $urlClients = [];
 
         foreach ($urls as $index => $url) {
-            $urlClients[$index] = new ClientAdapter($driver->createClient());
+            $urlClients[$index] = $factory->create();
         }
 
         /** @var array<int, Page|null> $results indexed by original URL position */
@@ -148,7 +164,7 @@ class Browser
 
         $slotCount = min($concurrency, count($urls));
 
-        /** @var array<int, \Fiber> $fibers keyed by slot */
+        /** @var array<int, Fiber> $fibers keyed by slot */
         $fibers = [];
 
         /** @var array<int, int> $fiberIndex maps slot to original URL index */
@@ -170,7 +186,7 @@ class Browser
                 $available[$slot]  = false;
                 $fiberIndex[$slot] = $item['index'];
 
-                $fibers[$slot] = new \Fiber(static function () use ($client, $item, $timeout): Page {
+                $fibers[$slot] = new Fiber(static function () use ($client, $item, $timeout): Page {
                     $client->request('GET', $item['url']);
                     $client->waitForPageReady($timeout);
 
@@ -179,7 +195,7 @@ class Browser
 
                 try {
                     $fibers[$slot]->start();
-                } catch (\Throwable) {
+                } catch (Throwable) {
                     $available[$slot] = true;
                     unset($fibers[$slot], $fiberIndex[$slot]);
                 }
@@ -195,7 +211,7 @@ class Browser
                     } elseif ($fiber->isSuspended()) {
                         $fiber->resume();
                     }
-                } catch (\Throwable) {
+                } catch (Throwable) {
                     $available[$slot] = true;
                     unset($fibers[$slot], $fiberIndex[$slot]);
                 }
@@ -228,10 +244,18 @@ class Browser
     private function getAdapter(): ClientInterface
     {
         if ($this->client === null) {
-            $client        = $this->getDriver()->createClient();
-            $this->client = new ClientAdapter($client);
+            $this->client = $this->getClientFactory()->create();
         }
 
         return $this->client;
+    }
+
+    private function getClientFactory(): ClientFactory
+    {
+        if ($this->clientFactory === null) {
+            $this->clientFactory = new ChromeClientFactory($this->getDriver());
+        }
+
+        return $this->clientFactory;
     }
 }

@@ -9,6 +9,7 @@ use RuntimeException;
 use Symfony\Component\Process\ExecutableFinder;
 use Symfony\Component\Process\Process;
 use ZipArchive;
+use Throwable;
 
 /**
  * Manages downloading and installing the correct ChromeDriver binary
@@ -119,6 +120,11 @@ class ChromeDriverInstaller
         return $this->install(force: true, driversDir: $driversDir);
     }
 
+    protected function binaryName(): string
+    {
+        return PHP_OS_FAMILY === 'Windows' ? 'chromedriver.exe' : 'chromedriver';
+    }
+
     protected function download(string $driversDir): InstallationResult
     {
         $chromeVersion = $this->getChromeVersion();
@@ -193,41 +199,38 @@ class ChromeDriverInstaller
             if (preg_match('/(\d+\.\d+[\.\d]*)/', $output, $matches)) {
                 return $matches[1];
             }
-        } catch (\Throwable) {
+        } catch (Throwable) {
             // Binary not runnable
         }
 
         return null;
     }
 
-    /**
-     * Read the product version from a Windows executable using PowerShell.
-     */
-    private function getWindowsFileVersion(string $binary): ?string
+    protected function platform(): string
     {
-        try {
-            $process = new Process([
-                'powershell', '-NoProfile', '-Command',
-                sprintf('(Get-Item "%s").VersionInfo.ProductVersion', $binary),
-            ]);
-            $process->setTimeout(5);
-            $process->run();
+        $os   = PHP_OS_FAMILY;
+        $arch = php_uname('m');
 
-            $output = trim($process->getOutput());
-
-            if (preg_match('/(\d+\.\d+[\.\d]*)/', $output, $matches)) {
-                return $matches[1];
-            }
-        } catch (\Throwable) {
-            // PowerShell not available or failed
+        if ($os === 'Windows') {
+            return PHP_INT_SIZE === 8 ? 'win64' : 'win32';
         }
 
-        return null;
+        if ($os === 'Darwin') {
+            return str_contains($arch, 'arm') ? 'mac-arm64' : 'mac-x64';
+        }
+
+        return 'linux64';
     }
 
-    protected function binaryName(): string
+    protected function resolveDriversDir(?string $dir = null): string
     {
-        return PHP_OS_FAMILY === 'Windows' ? 'chromedriver.exe' : 'chromedriver';
+        $dir = $dir ?? self::DRIVERS_DIR;
+
+        if (!is_dir($dir) && !mkdir($dir, 0755, true)) {
+            throw new RuntimeException(sprintf('Could not create drivers directory: %s', $dir));
+        }
+
+        return $dir;
     }
 
     private function extractBinary(string $zipPath, string $driversDir): void
@@ -352,20 +355,29 @@ class ChromeDriverInstaller
         return null;
     }
 
-    protected function platform(): string
+    /**
+     * Read the product version from a Windows executable using PowerShell.
+     */
+    private function getWindowsFileVersion(string $binary): ?string
     {
-        $os   = PHP_OS_FAMILY;
-        $arch = php_uname('m');
+        try {
+            $process = new Process([
+                'powershell', '-NoProfile', '-Command',
+                sprintf('(Get-Item "%s").VersionInfo.ProductVersion', $binary),
+            ]);
+            $process->setTimeout(5);
+            $process->run();
 
-        if ($os === 'Windows') {
-            return PHP_INT_SIZE === 8 ? 'win64' : 'win32';
+            $output = trim($process->getOutput());
+
+            if (preg_match('/(\d+\.\d+[\.\d]*)/', $output, $matches)) {
+                return $matches[1];
+            }
+        } catch (Throwable) {
+            // PowerShell not available or failed
         }
 
-        if ($os === 'Darwin') {
-            return str_contains($arch, 'arm') ? 'mac-arm64' : 'mac-x64';
-        }
-
-        return 'linux64';
+        return null;
     }
 
     private function removeDirectory(string $dir): void
@@ -407,17 +419,6 @@ class ChromeDriverInstaller
         }
 
         return [$this->resolveLegacyDownloadUrl($chromeMajor, $platform), null];
-    }
-
-    protected function resolveDriversDir(?string $dir = null): string
-    {
-        $dir = $dir ?? self::DRIVERS_DIR;
-
-        if (!is_dir($dir) && !mkdir($dir, 0755, true)) {
-            throw new RuntimeException(sprintf('Could not create drivers directory: %s', $dir));
-        }
-
-        return $dir;
     }
 
     private function resolveLegacyDownloadUrl(int $chromeMajor, string $platform): string

@@ -4,11 +4,18 @@ declare(strict_types=1);
 
 namespace Myerscode\Beacon\Support;
 
+use Myerscode\Beacon\ProcessFactory;
 use Symfony\Component\Process\ExecutableFinder;
-use Symfony\Component\Process\Process;
+use Throwable;
 
 class DependencyChecker
 {
+    public function __construct(
+        private readonly ?ExecutableFinder $executableFinder = null,
+        private readonly ?ProcessFactory $processFactory = null,
+    ) {
+    }
+
     /**
      * Run all dependency checks.
      *
@@ -164,8 +171,38 @@ class DependencyChecker
     }
 
     /**
-     * Find a binary by name using Symfony's ExecutableFinder (cross-platform,
-     * no shell spawning, no interactive prompts on Windows).
+     * Check Chrome and ChromeDriver major versions match.
+     */
+    public function versionCompatibility(DependencyCheck $chrome, DependencyCheck $chromeDriver): ?DependencyCheck
+    {
+        if (!$chrome->found || !$chromeDriver->found || $chrome->version === null || $chromeDriver->version === null) {
+            return null;
+        }
+
+        $chromeMajor = (int) explode('.', $chrome->version)[0];
+        $driverMajor = (int) explode('.', $chromeDriver->version)[0];
+
+        if ($chromeMajor === $driverMajor) {
+            return new DependencyCheck(
+                'Version Match',
+                true,
+                null,
+                null,
+                sprintf('Chrome (%d) and ChromeDriver (%d) major versions match', $chromeMajor, $driverMajor),
+            );
+        }
+
+        return new DependencyCheck(
+            'Version Match',
+            false,
+            null,
+            null,
+            sprintf('Chrome (%d) and ChromeDriver (%d) major versions differ. They must match.', $chromeMajor, $driverMajor),
+        );
+    }
+
+    /**
+     * Find a binary by name using Symfony's ExecutableFinder.
      *
      * @param string[] $names
      * @param string[] $extraPaths
@@ -183,7 +220,7 @@ class DependencyChecker
             }
         }
 
-        $finder = new ExecutableFinder();
+        $finder = $this->executableFinder ?? new ExecutableFinder();
 
         foreach ($names as $name) {
             $path = $finder->find($name);
@@ -197,19 +234,18 @@ class DependencyChecker
     }
 
     /**
-     * Get the version string from a binary using Symfony Process —
-     * no shell spawning, no interactive prompts on Windows.
+     * Get the version string from a binary.
      */
     private function getVersion(string $binary): ?string
     {
         // On Windows, Chrome is a GUI app that doesn't support --version.
-        // Read the version from the file's product version metadata instead.
         if ($this->isWindows() && str_ends_with(strtolower($binary), 'chrome.exe')) {
             return $this->getWindowsFileVersion($binary);
         }
 
         try {
-            $process = new Process([$binary, '--version']);
+            $factory = $this->processFactory ?? new ProcessFactory();
+            $process = $factory->create([$binary, '--version']);
             $process->setTimeout(5);
             $process->run();
 
@@ -222,7 +258,7 @@ class DependencyChecker
             if (preg_match('/(\d+\.\d+[\.\d]*)/', $output, $matches)) {
                 return $matches[1];
             }
-        } catch (\Throwable) {
+        } catch (Throwable) {
             // Binary not runnable
         }
 
@@ -235,7 +271,8 @@ class DependencyChecker
     private function getWindowsFileVersion(string $binary): ?string
     {
         try {
-            $process = new Process([
+            $factory = $this->processFactory ?? new ProcessFactory();
+            $process = $factory->create([
                 'powershell', '-NoProfile', '-Command',
                 sprintf('(Get-Item "%s").VersionInfo.ProductVersion', $binary),
             ]);
@@ -247,7 +284,7 @@ class DependencyChecker
             if (preg_match('/(\d+\.\d+[\.\d]*)/', $output, $matches)) {
                 return $matches[1];
             }
-        } catch (\Throwable) {
+        } catch (Throwable) {
             // PowerShell not available or failed
         }
 
@@ -295,37 +332,6 @@ class DependencyChecker
         }
 
         return $paths;
-    }
-
-    /**
-     * Check Chrome and ChromeDriver major versions match.
-     */
-    protected function versionCompatibility(DependencyCheck $chrome, DependencyCheck $chromeDriver): ?DependencyCheck
-    {
-        if (!$chrome->found || !$chromeDriver->found || $chrome->version === null || $chromeDriver->version === null) {
-            return null;
-        }
-
-        $chromeMajor = (int) explode('.', $chrome->version)[0];
-        $driverMajor = (int) explode('.', $chromeDriver->version)[0];
-
-        if ($chromeMajor === $driverMajor) {
-            return new DependencyCheck(
-                'Version Match',
-                true,
-                null,
-                null,
-                sprintf('Chrome (%d) and ChromeDriver (%d) major versions match', $chromeMajor, $driverMajor),
-            );
-        }
-
-        return new DependencyCheck(
-            'Version Match',
-            false,
-            null,
-            null,
-            sprintf('Chrome (%d) and ChromeDriver (%d) major versions differ. They must match.', $chromeMajor, $driverMajor),
-        );
     }
 
     /**

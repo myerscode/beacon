@@ -19,7 +19,7 @@ class Page
     private ?LighthouseRunner $lighthouseRunner = null;
 
     /**
-     * @param Browser|null    $browser Reference to the Browser to prevent GC and share the driver
+     * @param Browser|null $browser Reference to the Browser to prevent GC and share the driver
      */
     public function __construct(
         private readonly ClientInterface $client,
@@ -67,22 +67,14 @@ class Page
     public function crawl(?CrawlConfig $crawlConfig = null): CrawlResultCollection
     {
         $crawlConfig ??= new CrawlConfig();
-        $ownDriver     = null;
 
-        if ($this->browser !== null) {
-            $driver = $this->browser->getDriver();
-        } else {
-            $ownDriver = new ChromeDriverManager();
-            $driver    = $ownDriver;
-        }
+        $clientFactory = $this->browser !== null
+            ? new ChromeClientFactory($this->browser->getDriver())
+            : new ChromeClientFactory(new ChromeDriverManager());
 
-        $crawler = new Spider($crawlConfig, $driver);
+        $spider = new Spider($crawlConfig, $clientFactory);
 
-        try {
-            return $crawler->crawl($this->url, $this->source());
-        } finally {
-            $ownDriver?->quit();
-        }
+        return $spider->crawl($this->url, $this->source());
     }
 
     /**

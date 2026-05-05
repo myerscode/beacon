@@ -29,38 +29,6 @@ final class VisitAllIntegrationTest extends IntegrationTestCase
         parent::tearDownAfterClass();
     }
 
-    public function testVisitAllReturnsPageForEachUrl(): void
-    {
-        $urls = [
-            self::baseUrl() . '/index.html',
-            self::baseUrl() . '/about.html',
-            self::baseUrl() . '/contact.html',
-        ];
-
-        $pages = self::$browser->visitAll($urls);
-
-        $this->assertCount(3, $pages);
-
-        foreach ($pages as $page) {
-            $this->assertInstanceOf(Page::class, $page);
-        }
-    }
-
-    public function testVisitAllPreservesUrlOrder(): void
-    {
-        $urls = [
-            self::baseUrl() . '/contact.html',
-            self::baseUrl() . '/index.html',
-            self::baseUrl() . '/about.html',
-        ];
-
-        $pages = self::$browser->visitAll($urls);
-
-        $this->assertSame($urls[0], $pages[0]->url());
-        $this->assertSame($urls[1], $pages[1]->url());
-        $this->assertSame($urls[2], $pages[2]->url());
-    }
-
     public function testVisitAllPagesHaveCorrectTitles(): void
     {
         $urls = [
@@ -89,12 +57,43 @@ final class VisitAllIntegrationTest extends IntegrationTestCase
         $this->assertStringContainsString('About Us', $pages[1]->source());
     }
 
-    public function testVisitAllWithSingleUrl(): void
+    public function testVisitAllPreservesUrlOrder(): void
     {
-        $pages = self::$browser->visitAll([self::baseUrl() . '/index.html']);
+        $urls = [
+            self::baseUrl() . '/contact.html',
+            self::baseUrl() . '/index.html',
+            self::baseUrl() . '/about.html',
+        ];
 
-        $this->assertCount(1, $pages);
-        $this->assertSame('Test Homepage', $pages[0]->title());
+        $pages = self::$browser->visitAll($urls);
+
+        $this->assertSame($urls[0], $pages[0]->url());
+        $this->assertSame($urls[1], $pages[1]->url());
+        $this->assertSame($urls[2], $pages[2]->url());
+    }
+
+    public function testVisitAllReturnsEmptyForEmptyInput(): void
+    {
+        $pages = self::$browser->visitAll([]);
+
+        $this->assertSame([], $pages);
+    }
+
+    public function testVisitAllReturnsPageForEachUrl(): void
+    {
+        $urls = [
+            self::baseUrl() . '/index.html',
+            self::baseUrl() . '/about.html',
+            self::baseUrl() . '/contact.html',
+        ];
+
+        $pages = self::$browser->visitAll($urls);
+
+        $this->assertCount(3, $pages);
+
+        foreach ($pages as $page) {
+            $this->assertInstanceOf(Page::class, $page);
+        }
     }
 
     public function testVisitAllWithConcurrencyOfOne(): void
@@ -113,10 +112,11 @@ final class VisitAllIntegrationTest extends IntegrationTestCase
         $this->assertSame('Contact', $pages[2]->title());
     }
 
-    public function testVisitAllReturnsEmptyForEmptyInput(): void
+    public function testVisitAllWithSingleUrl(): void
     {
-        $pages = self::$browser->visitAll([]);
+        $pages = self::$browser->visitAll([self::baseUrl() . '/index.html']);
 
-        $this->assertSame([], $pages);
+        $this->assertCount(1, $pages);
+        $this->assertSame('Test Homepage', $pages[0]->title());
     }
 }
