@@ -49,6 +49,11 @@ class Spider
         $this->crawlResultCollection->add($startResult);
         $this->crawlConfig->notifyCrawled($normalizedStart, $startResult);
 
+        // Record assets from the start page (if media discovery is enabled)
+        if ($this->crawlConfig->shouldDiscoverMedia()) {
+            $this->recordAssets($html, $normalizedStart, 0);
+        }
+
         /** @var array<string, bool> $queued */
         $queued = [$normalizedStart => true];
 
@@ -89,6 +94,26 @@ class Spider
 
             $queued[$normalized] = true;
             $queue[] = ['url' => $normalized, 'depth' => 1, 'source' => $normalizedStart];
+        }
+
+        // Add seed URLs to the queue (pre-loaded known pages)
+        foreach ($this->crawlConfig->getSeeds() as $seedUrl) {
+            $normalized = $this->normalizeUrl($seedUrl);
+
+            if ($normalized === '' || isset($queued[$normalized])) {
+                continue;
+            }
+
+            if (!$this->isInternal($normalized)) {
+                continue;
+            }
+
+            if (!$this->crawlConfig->isAllowed($normalized)) {
+                continue;
+            }
+
+            $queued[$normalized] = true;
+            $queue[] = ['url' => $normalized, 'depth' => 1, 'source' => ''];
         }
 
         if ($queue === []) {
@@ -174,6 +199,64 @@ class Spider
             $queued[$normalized] = true;
             $queue[]             = ['url' => $normalized, 'depth' => $linkDepth, 'source' => $item['url']];
         }
+    }
+
+    /**
+     * Extract static asset URLs from HTML (images, stylesheets, scripts, fonts).
+     * These are recorded but never followed.
+     *
+     * @return array<int, array{url: string}>
+     */
+    protected function extractAssetsFromHtml(string $html, string $pageUrl): array
+    {
+        /** @var array<int, array{url: string}> $assets */
+        $assets = [];
+
+        // <img src="...">
+        if (preg_match_all('/<img\s[^>]*src=["\']([^"\']*)["\'][^>]*>/i', $html, $matches)) {
+            foreach ($matches[1] as $src) {
+                $resolved = $this->resolveUrl($src, $pageUrl);
+
+                if ($resolved !== '') {
+                    $assets[] = ['url' => $resolved];
+                }
+            }
+        }
+
+        // <link href="..."> (stylesheets, icons, etc.)
+        if (preg_match_all('/<link\s[^>]*href=["\']([^"\']*)["\'][^>]*>/i', $html, $matches)) {
+            foreach ($matches[1] as $href) {
+                $resolved = $this->resolveUrl($href, $pageUrl);
+
+                if ($resolved !== '') {
+                    $assets[] = ['url' => $resolved];
+                }
+            }
+        }
+
+        // <script src="...">
+        if (preg_match_all('/<script\s[^>]*src=["\']([^"\']*)["\'][^>]*>/i', $html, $matches)) {
+            foreach ($matches[1] as $src) {
+                $resolved = $this->resolveUrl($src, $pageUrl);
+
+                if ($resolved !== '') {
+                    $assets[] = ['url' => $resolved];
+                }
+            }
+        }
+
+        // <source src="..."> (video/audio)
+        if (preg_match_all('/<source\s[^>]*src=["\']([^"\']*)["\'][^>]*>/i', $html, $matches)) {
+            foreach ($matches[1] as $src) {
+                $resolved = $this->resolveUrl($src, $pageUrl);
+
+                if ($resolved !== '') {
+                    $assets[] = ['url' => $resolved];
+                }
+            }
+        }
+
+        return $assets;
     }
 
     /**
@@ -328,6 +411,36 @@ class Spider
         }
     }
 
+    /**
+     * Extract and record static assets from HTML without following them.
+     */
+    private function recordAssets(string $html, string $pageUrl, int $depth): void
+    {
+        $assets = $this->extractAssetsFromHtml($html, $pageUrl);
+
+        foreach ($assets as $asset) {
+            $normalized = $this->normalizeUrl($asset['url']);
+
+            if ($normalized === '') {
+                continue;
+            }
+
+            $isInternal = $this->isInternal($normalized);
+
+            $assetResult = new CrawlResult(
+                $normalized,
+                $isInternal,
+                null,
+                [$pageUrl],
+                $depth + 1,
+                asset: true,
+            );
+
+            $this->crawlResultCollection->add($assetResult);
+            $this->crawlConfig->notifyCrawled($normalized, $assetResult);
+        }
+    }
+
     private function stripFragment(string $url): string
     {
         $pos = strpos($url, '#');
@@ -365,6 +478,11 @@ class Spider
                 $statusCode = $client->getStatusCode();
                 $html       = $client->getPageSource();
                 $links      = $this->extractLinksFromHtml($html, $url);
+
+                // Record assets from this page (if media discovery is enabled)
+                if ($this->crawlConfig->shouldDiscoverMedia()) {
+                    $this->recordAssets($html, $url, $depth);
+                }
 
                 break;
             } catch (Throwable) {

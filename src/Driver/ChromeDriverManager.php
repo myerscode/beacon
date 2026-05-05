@@ -41,13 +41,21 @@ class ChromeDriverManager
         ?string $chromeDriverBinary = null,
         ?BinaryFinder $binaryFinder = null,
         ?ProcessFactory $processFactory = null,
+        private readonly bool $verbose = false,
     ) {
         $this->port = random_int(10000, 60000);
 
         $binary = $chromeDriverBinary ?? ($binaryFinder ?? new BinaryFinder())->find();
 
+        $command = [$binary, '--port='.$this->port];
+
+        if ($this->verbose) {
+            $command[] = '--verbose';
+            $command[] = '--readable-timestamp';
+        }
+
         $factory = $processFactory ?? new ProcessFactory();
-        $this->process = $factory->create([$binary, '--port='.$this->port]);
+        $this->process = $factory->create($command);
         $this->process->start();
         $this->pid = $this->process->getPid();
 
@@ -98,6 +106,18 @@ class ChromeDriverManager
     }
 
     /**
+     * Get incremental output from the ChromeDriver process (stdout + stderr).
+     */
+    public function getIncrementalOutput(): string
+    {
+        if ($this->process === null) {
+            return '';
+        }
+
+        return $this->process->getIncrementalOutput().$this->process->getIncrementalErrorOutput();
+    }
+
+    /**
      * Get the port this driver is running on.
      */
     public function getPort(): int
@@ -111,6 +131,14 @@ class ChromeDriverManager
     public function getUrl(): string
     {
         return sprintf('http://%s:%d', $this->host, $this->port);
+    }
+
+    /**
+     * Check if the ChromeDriver process is still running.
+     */
+    public function isRunning(): bool
+    {
+        return $this->process instanceof Process && $this->process->isRunning();
     }
 
     /**

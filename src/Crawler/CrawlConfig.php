@@ -14,12 +14,21 @@ class CrawlConfig
     private array $excludePatterns = [];
 
     private int $maxConcurrent = 5;
+
     private int $maxDepth = 5;
+
     private int $maxRetries = 0;
+
+    private bool $media = false;
 
     private ?Closure $onCrawled = null;
 
     private int $requestDelay = 0;
+
+    /**
+     * @var string[]
+     */
+    private array $seeds = [];
 
     private ?Closure $shouldCrawl = null;
 
@@ -61,6 +70,14 @@ class CrawlConfig
     public function getRequestDelay(): int
     {
         return $this->requestDelay;
+    }
+
+    /**
+     * @return string[]
+     */
+    public function getSeeds(): array
+    {
+        return $this->seeds;
     }
 
     public function getTimeout(): int
@@ -144,6 +161,19 @@ class CrawlConfig
     }
 
     /**
+     * Pre-load the crawl queue with known URLs.
+     * These will be crawled in addition to any links discovered from the start page.
+     *
+     * @param string[] $urls Absolute URLs to seed the crawl with
+     */
+    public function seedUrls(array $urls): self
+    {
+        $this->seeds = $urls;
+
+        return $this;
+    }
+
+    /**
      * Set a closure to evaluate whether a URL should be crawled.
      * Receives the URL string, should return bool.
      *
@@ -156,9 +186,25 @@ class CrawlConfig
         return $this;
     }
 
+    public function shouldDiscoverMedia(): bool
+    {
+        return $this->media;
+    }
+
     public function timeout(int $seconds): self
     {
         $this->timeout = $seconds;
+
+        return $this;
+    }
+
+    /**
+     * Enable discovery of static assets (CSS, JS, images, fonts) from page HTML.
+     * Assets are reported via onCrawled but are NOT followed or loaded.
+     */
+    public function withMedia(bool $enabled = true): self
+    {
+        $this->media = $enabled;
 
         return $this;
     }

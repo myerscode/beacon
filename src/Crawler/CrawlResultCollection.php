@@ -34,6 +34,7 @@ class CrawlResultCollection implements Countable, IteratorAggregate
                 $crawlResult->statusCode ?? $existing->statusCode,
                 $merged,
                 min($existing->depth, $crawlResult->depth),
+                $existing->asset && $crawlResult->asset,
             );
         } else {
             $this->results[$url] = $crawlResult;
@@ -48,6 +49,16 @@ class CrawlResultCollection implements Countable, IteratorAggregate
     public function all(): array
     {
         return $this->results;
+    }
+
+    /**
+     * Get only asset results (CSS, JS, images, fonts).
+     *
+     * @return array<string, CrawlResult>
+     */
+    public function assets(): array
+    {
+        return array_filter($this->results, fn (CrawlResult $crawlResult): bool => $crawlResult->asset);
     }
 
     /**
