@@ -5,6 +5,11 @@ declare(strict_types=1);
 namespace Myerscode\Beacon;
 
 use Fiber;
+use Myerscode\Beacon\Client\ChromeClientFactory;
+use Myerscode\Beacon\Client\ClientFactory;
+use Myerscode\Beacon\Client\ClientInterface;
+use Myerscode\Beacon\Client\RemoteClientFactory;
+use Myerscode\Beacon\Driver\ChromeDriverManager;
 use Throwable;
 
 class Browser
@@ -40,6 +45,22 @@ class Browser
     public static function cleanup(): void
     {
         ChromeDriverManager::cleanup();
+    }
+
+    /**
+     * Create a Browser that connects to an already-running ChromeDriver.
+     * The Browser will NOT manage the ChromeDriver lifecycle — it assumes
+     * the driver is externally managed (e.g. via a supervisor or daemon).
+     *
+     * @param string   $url             The ChromeDriver URL (e.g. http://127.0.0.1:9515)
+     * @param string[] $chromeArguments  Chrome arguments for new sessions
+     */
+    public static function connectTo(string $url, array $chromeArguments = ['--headless=new', '--disable-gpu', '--no-sandbox', '--disable-dev-shm-usage']): self
+    {
+        $browser = new self();
+        $browser->clientFactory = new RemoteClientFactory($url, $chromeArguments);
+
+        return $browser;
     }
 
     public static function create(): self
@@ -101,7 +122,8 @@ class Browser
     }
 
     /**
-     * Close the browser and shut down ChromeDriver.
+     * Close the browser and shut down ChromeDriver (if locally managed).
+     * When connected to a remote driver, only the client session is closed.
      */
     public function quit(): void
     {

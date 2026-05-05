@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Myerscode\Beacon\Tests;
 
-use Myerscode\Beacon\CrawlerAdapter;
-use Myerscode\Beacon\CrawlerInterface;
+use Myerscode\Beacon\Client\CrawlerAdapter;
+use Myerscode\Beacon\Client\CrawlerInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DomCrawler\Crawler;
 

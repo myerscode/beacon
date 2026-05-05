@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Myerscode\Beacon\Crawler;
 
-use Myerscode\Beacon\ClientFactory;
-use Myerscode\Beacon\ClientInterface;
 use Fiber;
+use Myerscode\Beacon\Client\ClientFactory;
+use Myerscode\Beacon\Client\ClientInterface;
 use Throwable;
 
 /**

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Myerscode\Beacon\Tests;
 
-use Myerscode\Beacon\BinaryFinder;
-use Myerscode\Beacon\ChromeDriverManager;
-use Myerscode\Beacon\ProcessFactory;
+use Myerscode\Beacon\Driver\BinaryFinder;
+use Myerscode\Beacon\Driver\ChromeDriverManager;
+use Myerscode\Beacon\Driver\ProcessFactory;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Symfony\Component\Process\ExecutableFinder;

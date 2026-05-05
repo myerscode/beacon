@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Myerscode\Beacon;
+namespace Myerscode\Beacon\Client;
 
 use Symfony\Component\DomCrawler\Crawler;
 

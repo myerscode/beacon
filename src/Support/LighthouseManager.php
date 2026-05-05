@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Myerscode\Beacon\Support;
 
-use Myerscode\Beacon\ProcessFactory;
+use Myerscode\Beacon\Driver\ProcessFactory;
 use RuntimeException;
 use Symfony\Component\Process\ExecutableFinder;
 use Throwable;

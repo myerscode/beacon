@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Myerscode\Beacon\Tests;
 
 use Myerscode\Beacon\Browser;
-use Myerscode\Beacon\ClientFactory;
-use Myerscode\Beacon\ClientInterface;
+use Myerscode\Beacon\Client\ClientFactory;
+use Myerscode\Beacon\Client\ClientInterface;
 use Myerscode\Beacon\Page;
 use PHPUnit\Framework\TestCase;
 use ReflectionProperty;

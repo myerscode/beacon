@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Myerscode\Beacon\Tests\Lighthouse;
 
-use Myerscode\Beacon\ClientInterface;
+use Myerscode\Beacon\Client\ClientInterface;
 use Myerscode\Beacon\Lighthouse\Audit;
 use Myerscode\Beacon\Lighthouse\Category;
 use Myerscode\Beacon\Lighthouse\LighthouseResult;

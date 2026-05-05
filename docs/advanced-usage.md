@@ -24,14 +24,18 @@ $browser->quit();
 
 | Method | Description |
 |---|---|
-| `create(): Browser` | Static factory |
+| `create(): Browser` | Static factory (spawns its own ChromeDriver) |
+| `connectTo(string $url): Browser` | Connect to an external ChromeDriver |
 | `windowSize(int $w, int $h): Browser` | Set viewport size |
 | `waitTimeout(int $seconds): Browser` | Set page load wait timeout |
 | `addArgument(string $arg): Browser` | Add a Chrome CLI argument |
 | `chromeBinary(string $path): Browser` | Custom Chrome binary path |
 | `chromeDriverBinary(string $path): Browser` | Custom ChromeDriver path |
 | `visit(string $url): Page` | Navigate to URL, returns Page |
+| `visitAll(array $urls): Page[]` | Visit multiple URLs concurrently |
 | `quit(): void` | Close browser and clean up |
+
+> **Remote ChromeDriver:** For long-running processes (queue workers, daemons), use `Browser::connectTo()` to connect to an externally managed ChromeDriver. See [Remote Driver](remote-driver.md) for details.
 
 ## Managing Dependencies
 

@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace Myerscode\Beacon;
 
+use Myerscode\Beacon\Client\ChromeClientFactory;
+use Myerscode\Beacon\Client\ClientInterface;
+use Myerscode\Beacon\Client\CrawlerInterface;
 use Myerscode\Beacon\Crawler\CrawlConfig;
 use Myerscode\Beacon\Crawler\CrawlResultCollection;
 use Myerscode\Beacon\Crawler\Spider;
+use Myerscode\Beacon\Driver\ChromeDriverManager;
 use Myerscode\Beacon\Lighthouse\Audit;
 use Myerscode\Beacon\Lighthouse\Category;
 use Myerscode\Beacon\Lighthouse\LighthouseResult;

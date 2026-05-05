@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Myerscode\Beacon;
+namespace Myerscode\Beacon\Client;
 
 use Symfony\Component\Panther\Client;
 use Throwable;
@@ -63,11 +63,11 @@ class ClientAdapter implements ClientInterface
     public function savePdf(string $path): void
     {
         /** @var array{data: string} $result */
-        $result  = $this->client->execute('sendCommand', [
-            'cmd'    => 'Page.printToPDF',
+        $result = $this->client->execute('sendCommand', [
+            'cmd' => 'Page.printToPDF',
             'params' => [
-                'printBackground'    => true,
-                'preferCSSPageSize'  => true,
+                'printBackground' => true,
+                'preferCSSPageSize' => true,
             ],
         ]);
 
@@ -99,8 +99,6 @@ class ClientAdapter implements ClientInterface
             if ($pageState['ready'] && $pageState['hasContent']) {
                 return;
             }
-
-            // Single executeScript call per iteration provides natural pacing (~10-50ms round-trip)
         }
     }
 }

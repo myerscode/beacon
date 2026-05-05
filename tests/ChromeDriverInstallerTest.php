@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Myerscode\Beacon\Tests;
 
-use Myerscode\Beacon\ChromeDriverInstaller;
+use Myerscode\Beacon\Driver\ChromeDriverInstaller;
 use Myerscode\Beacon\Support\InstallationResult;
 use PHPUnit\Framework\TestCase;
 

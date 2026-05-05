@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Myerscode\Beacon;
+namespace Myerscode\Beacon\Driver;
 
 use Facebook\WebDriver\Chrome\ChromeOptions;
 use Facebook\WebDriver\Remote\DesiredCapabilities;
@@ -47,7 +47,7 @@ class ChromeDriverManager
         $binary = $chromeDriverBinary ?? ($binaryFinder ?? new BinaryFinder())->find();
 
         $factory = $processFactory ?? new ProcessFactory();
-        $this->process = $factory->create([$binary, '--port=' . $this->port]);
+        $this->process = $factory->create([$binary, '--port='.$this->port]);
         $this->process->start();
         $this->pid = $this->process->getPid();
 
@@ -82,7 +82,7 @@ class ChromeDriverManager
      */
     public function createClient(): Client
     {
-        $url                 = sprintf('http://%s:%d', $this->host, $this->port);
+        $url = sprintf('http://%s:%d', $this->host, $this->port);
         $desiredCapabilities = DesiredCapabilities::chrome();
 
         $chromeOptions = new ChromeOptions();
@@ -150,7 +150,6 @@ class ChromeDriverManager
             return;
         }
 
-        // Check if the process is still running and kill it
         if (PHP_OS_FAMILY === 'Windows') {
             @exec(sprintf('taskkill /F /PID %d 2>NUL', $this->pid));
         } else {
@@ -164,14 +163,13 @@ class ChromeDriverManager
     {
         self::$instances[] = $this;
 
-        if (!self::$shutdownRegistered) {
+        if (! self::$shutdownRegistered) {
             self::$shutdownRegistered = true;
 
             register_shutdown_function(static function (): void {
                 self::cleanup();
             });
 
-            // Handle SIGINT (Ctrl+C) and SIGTERM gracefully
             if (function_exists('pcntl_signal')) {
                 pcntl_signal(SIGINT, static function (): void {
                     self::cleanup();
@@ -188,12 +186,12 @@ class ChromeDriverManager
 
     private function waitUntilReady(): void
     {
-        $timeout  = 10;
+        $timeout = 10;
         $deadline = time() + $timeout;
 
         while (time() < $deadline) {
-            if ($this->process instanceof Process && !$this->process->isRunning()) {
-                throw new RuntimeException('ChromeDriver process died: ' . $this->process->getErrorOutput());
+            if ($this->process instanceof Process && ! $this->process->isRunning()) {
+                throw new RuntimeException('ChromeDriver process died: '.$this->process->getErrorOutput());
             }
 
             $socket = @stream_socket_client(

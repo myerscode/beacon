@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Myerscode\Beacon\Tests\Crawler;
 
-use Myerscode\Beacon\ClientFactory;
+use Myerscode\Beacon\Client\ClientFactory;
 use Myerscode\Beacon\Crawler\CrawlConfig;
 use Myerscode\Beacon\Crawler\CrawlResult;
 use Myerscode\Beacon\Crawler\CrawlResultCollection;

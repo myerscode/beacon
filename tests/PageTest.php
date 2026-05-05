@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Myerscode\Beacon\Tests;
 
-use Myerscode\Beacon\ClientInterface;
-use Myerscode\Beacon\CrawlerInterface;
+use Myerscode\Beacon\Client\ClientInterface;
+use Myerscode\Beacon\Client\CrawlerInterface;
 use Myerscode\Beacon\Page;
 use PHPUnit\Framework\TestCase;
 

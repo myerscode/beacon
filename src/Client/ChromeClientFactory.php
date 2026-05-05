@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Myerscode\Beacon;
+namespace Myerscode\Beacon\Client;
+
+use Myerscode\Beacon\Driver\ChromeDriverManager;
 
 /**
- * Default ClientFactory that creates Chrome sessions via ChromeDriverManager.
+ * Default ClientFactory that creates Chrome sessions via a local ChromeDriverManager.
  */
 class ChromeClientFactory implements ClientFactory
 {

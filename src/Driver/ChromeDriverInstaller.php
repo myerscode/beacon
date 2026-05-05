@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Myerscode\Beacon;
+namespace Myerscode\Beacon\Driver;
 
 use Myerscode\Beacon\Support\InstallationResult;
 use RuntimeException;
 use Symfony\Component\Process\ExecutableFinder;
 use Symfony\Component\Process\Process;
-use ZipArchive;
 use Throwable;
+use ZipArchive;
 
 /**
  * Manages downloading and installing the correct ChromeDriver binary
@@ -23,21 +23,15 @@ class ChromeDriverInstaller
 
     private const CHROMEDRIVER_LATEST_URL = 'https://chromedriver.storage.googleapis.com/LATEST_RELEASE';
 
-    /**
-     * Create a new instance of the installer.
-     */
     public static function make(): static
     {
         return new static();
     }
 
-    /**
-     * Remove the ChromeDriver binary from the drivers directory.
-     */
     public function clean(?string $driversDir = null): InstallationResult
     {
         $driversDir = $this->resolveDriversDir($driversDir);
-        $binary     = $driversDir . DIRECTORY_SEPARATOR . $this->binaryName();
+        $binary = $driversDir.DIRECTORY_SEPARATOR.$this->binaryName();
 
         if (file_exists($binary)) {
             unlink($binary);
@@ -48,9 +42,6 @@ class ChromeDriverInstaller
         return InstallationResult::nothing(sprintf('ChromeDriver not found in %s, nothing to clean.', $driversDir));
     }
 
-    /**
-     * Detect the installed Chrome version.
-     */
     public function getChromeVersion(): ?string
     {
         $candidates = PHP_OS_FAMILY === 'Windows'
@@ -65,9 +56,8 @@ class ChromeDriverInstaller
             }
         }
 
-        // Fallback: try ExecutableFinder (cross-platform, no shell spawning)
         $finder = new ExecutableFinder();
-        $names  = ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser', 'chrome'];
+        $names = ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser', 'chrome'];
 
         foreach ($names as $name) {
             $found = $finder->find($name);
@@ -84,22 +74,18 @@ class ChromeDriverInstaller
         return null;
     }
 
-    /**
-     * Install ChromeDriver matching the installed Chrome version.
-     * Skips if already installed and version matches.
-     */
     public function install(bool $force = false, ?string $driversDir = null): InstallationResult
     {
         $driversDir = $this->resolveDriversDir($driversDir);
-        $binary     = $driversDir . DIRECTORY_SEPARATOR . $this->binaryName();
+        $binary = $driversDir.DIRECTORY_SEPARATOR.$this->binaryName();
 
-        if (!$force && file_exists($binary)) {
+        if (! $force && file_exists($binary)) {
             $installedVersion = $this->getBinaryVersion($binary);
-            $chromeVersion    = $this->getChromeVersion();
+            $chromeVersion = $this->getChromeVersion();
 
             if ($installedVersion !== null && $chromeVersion !== null) {
                 $installedMajor = (int) explode('.', $installedVersion)[0];
-                $chromeMajor    = (int) explode('.', $chromeVersion)[0];
+                $chromeMajor = (int) explode('.', $chromeVersion)[0];
 
                 if ($installedMajor === $chromeMajor) {
                     return InstallationResult::skipped(
@@ -112,9 +98,6 @@ class ChromeDriverInstaller
         return $this->download($driversDir);
     }
 
-    /**
-     * Force re-download of ChromeDriver, replacing any existing binary.
-     */
     public function update(?string $driversDir = null): InstallationResult
     {
         return $this->install(force: true, driversDir: $driversDir);
@@ -136,7 +119,7 @@ class ChromeDriverInstaller
         }
 
         $chromeMajor = (int) explode('.', $chromeVersion)[0];
-        $messages    = [sprintf('Detected Chrome version: %s (major: %d)', $chromeVersion, $chromeMajor)];
+        $messages = [sprintf('Detected Chrome version: %s (major: %d)', $chromeVersion, $chromeMajor)];
 
         [$downloadUrl, $resolveMessage] = $this->resolveDownloadUrl($chromeMajor, $chromeVersion);
 
@@ -147,7 +130,7 @@ class ChromeDriverInstaller
         }
 
         $zipContent = $this->fetchUrl($downloadUrl);
-        $tmpZip     = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'chromedriver_' . uniqid() . '.zip';
+        $tmpZip = sys_get_temp_dir().DIRECTORY_SEPARATOR.'chromedriver_'.uniqid().'.zip';
 
         file_put_contents($tmpZip, $zipContent);
 
@@ -155,9 +138,9 @@ class ChromeDriverInstaller
 
         @unlink($tmpZip);
 
-        $binary = $driversDir . DIRECTORY_SEPARATOR . $this->binaryName();
+        $binary = $driversDir.DIRECTORY_SEPARATOR.$this->binaryName();
 
-        if (!file_exists($binary)) {
+        if (! file_exists($binary)) {
             throw new RuntimeException('ChromeDriver extraction failed — binary not found after unzip.');
         }
 
@@ -175,12 +158,10 @@ class ChromeDriverInstaller
 
     protected function getBinaryVersion(string $binary): ?string
     {
-        if (!file_exists($binary)) {
+        if (! file_exists($binary)) {
             return null;
         }
 
-        // On Windows, Chrome is a GUI app that doesn't support --version.
-        // Read the version from the file's product version metadata instead.
         if (PHP_OS_FAMILY === 'Windows' && str_ends_with(strtolower($binary), 'chrome.exe')) {
             return $this->getWindowsFileVersion($binary);
         }
@@ -190,7 +171,7 @@ class ChromeDriverInstaller
             $process->setTimeout(5);
             $process->run();
 
-            if (!$process->isSuccessful()) {
+            if (! $process->isSuccessful()) {
                 return null;
             }
 
@@ -200,7 +181,6 @@ class ChromeDriverInstaller
                 return $matches[1];
             }
         } catch (Throwable) {
-            // Binary not runnable
         }
 
         return null;
@@ -208,7 +188,7 @@ class ChromeDriverInstaller
 
     protected function platform(): string
     {
-        $os   = PHP_OS_FAMILY;
+        $os = PHP_OS_FAMILY;
         $arch = php_uname('m');
 
         if ($os === 'Windows') {
@@ -226,7 +206,7 @@ class ChromeDriverInstaller
     {
         $dir = $dir ?? self::DRIVERS_DIR;
 
-        if (!is_dir($dir) && !mkdir($dir, 0755, true)) {
+        if (! is_dir($dir) && ! mkdir($dir, 0755, true)) {
             throw new RuntimeException(sprintf('Could not create drivers directory: %s', $dir));
         }
 
@@ -235,7 +215,7 @@ class ChromeDriverInstaller
 
     private function extractBinary(string $zipPath, string $driversDir): void
     {
-        if (!extension_loaded('zip')) {
+        if (! extension_loaded('zip')) {
             $this->extractWithCli($zipPath, $driversDir);
 
             return;
@@ -256,14 +236,15 @@ class ChromeDriverInstaller
                 continue;
             }
 
-            if (basename($name) === $binaryName && !str_ends_with($name, '/')) {
+            if (basename($name) === $binaryName && ! str_ends_with($name, '/')) {
                 $content = $zip->getFromIndex($i);
 
                 if ($content === false) {
                     throw new RuntimeException('Failed to read ChromeDriver from zip.');
                 }
 
-                file_put_contents($driversDir . DIRECTORY_SEPARATOR . $binaryName, $content);
+                file_put_contents($driversDir.DIRECTORY_SEPARATOR.$binaryName, $content);
+
                 break;
             }
         }
@@ -274,18 +255,18 @@ class ChromeDriverInstaller
     private function extractWithCli(string $zipPath, string $driversDir): void
     {
         $binaryName = $this->binaryName();
-        $output     = [];
-        $code       = 0;
+        $output = [];
+        $code = 0;
 
         if (PHP_OS_FAMILY === 'Windows') {
             @exec(
-                sprintf('powershell -Command "Expand-Archive -Path \'%s\' -DestinationPath \'%s\' -Force"', $zipPath, sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'cdtmp'),
+                sprintf('powershell -Command "Expand-Archive -Path \'%s\' -DestinationPath \'%s\' -Force"', $zipPath, sys_get_temp_dir().DIRECTORY_SEPARATOR.'cdtmp'),
                 $output,
                 $code,
             );
-            $extracted = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'cdtmp';
+            $extracted = sys_get_temp_dir().DIRECTORY_SEPARATOR.'cdtmp';
         } else {
-            $extracted = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'cdtmp_' . uniqid();
+            $extracted = sys_get_temp_dir().DIRECTORY_SEPARATOR.'cdtmp_'.uniqid();
             @exec(sprintf('unzip -o %s -d %s 2>/dev/null', escapeshellarg($zipPath), escapeshellarg($extracted)), $output, $code);
         }
 
@@ -295,7 +276,7 @@ class ChromeDriverInstaller
             throw new RuntimeException('Could not find chromedriver binary after extraction.');
         }
 
-        copy($found, $driversDir . DIRECTORY_SEPARATOR . $binaryName);
+        copy($found, $driversDir.DIRECTORY_SEPARATOR.$binaryName);
         $this->removeDirectory($extracted);
     }
 
@@ -303,12 +284,12 @@ class ChromeDriverInstaller
     {
         $context = stream_context_create([
             'http' => [
-                'timeout'         => 30,
+                'timeout' => 30,
                 'follow_location' => 1,
-                'user_agent'      => 'myerscode/beacon ChromeDriverInstaller',
+                'user_agent' => 'myerscode/beacon ChromeDriverInstaller',
             ],
             'ssl' => [
-                'verify_peer'      => true,
+                'verify_peer' => true,
                 'verify_peer_name' => true,
             ],
         ]);
@@ -324,7 +305,7 @@ class ChromeDriverInstaller
 
     private function findFileRecursive(string $dir, string $filename): ?string
     {
-        if (!is_dir($dir)) {
+        if (! is_dir($dir)) {
             return null;
         }
 
@@ -339,7 +320,7 @@ class ChromeDriverInstaller
                 continue;
             }
 
-            $path = $dir . DIRECTORY_SEPARATOR . $item;
+            $path = $dir.DIRECTORY_SEPARATOR.$item;
 
             if (is_dir($path)) {
                 $found = $this->findFileRecursive($path, $filename);
@@ -355,9 +336,6 @@ class ChromeDriverInstaller
         return null;
     }
 
-    /**
-     * Read the product version from a Windows executable using PowerShell.
-     */
     private function getWindowsFileVersion(string $binary): ?string
     {
         try {
@@ -374,7 +352,6 @@ class ChromeDriverInstaller
                 return $matches[1];
             }
         } catch (Throwable) {
-            // PowerShell not available or failed
         }
 
         return null;
@@ -382,7 +359,7 @@ class ChromeDriverInstaller
 
     private function removeDirectory(string $dir): void
     {
-        if (!is_dir($dir)) {
+        if (! is_dir($dir)) {
             return;
         }
 
@@ -397,7 +374,7 @@ class ChromeDriverInstaller
                 continue;
             }
 
-            $path = $dir . DIRECTORY_SEPARATOR . $item;
+            $path = $dir.DIRECTORY_SEPARATOR.$item;
             is_dir($path) ? $this->removeDirectory($path) : unlink($path);
         }
 
@@ -405,10 +382,7 @@ class ChromeDriverInstaller
     }
 
     /**
-     * Resolve the download URL for the matching ChromeDriver version.
-     * Uses Chrome for Testing API for Chrome 115+, legacy storage for older versions.
-     *
-     * @return array{string, string|null} [url, optional notice message]
+     * @return array{string, string|null}
      */
     private function resolveDownloadUrl(int $chromeMajor, string $chromeVersion): array
     {
@@ -423,15 +397,15 @@ class ChromeDriverInstaller
 
     private function resolveLegacyDownloadUrl(int $chromeMajor, string $platform): string
     {
-        $latestUrl     = self::CHROMEDRIVER_LATEST_URL . '_' . $chromeMajor;
+        $latestUrl = self::CHROMEDRIVER_LATEST_URL.'_'.$chromeMajor;
         $latestVersion = trim($this->fetchUrl($latestUrl));
 
         $platformMap = [
-            'linux64'   => 'linux64',
-            'mac-x64'   => 'mac64',
+            'linux64' => 'linux64',
+            'mac-x64' => 'mac64',
             'mac-arm64' => 'mac_arm64',
-            'win32'     => 'win32',
-            'win64'     => 'win32',
+            'win32' => 'win32',
+            'win64' => 'win32',
         ];
 
         $legacyPlatform = $platformMap[$platform] ?? $platform;
@@ -451,16 +425,16 @@ class ChromeDriverInstaller
         $json = $this->fetchUrl(self::CHROME_FOR_TESTING_VERSIONS_URL);
         $data = json_decode($json, true);
 
-        if (!is_array($data) || !isset($data['versions'])) {
+        if (! is_array($data) || ! isset($data['versions'])) {
             throw new RuntimeException('Failed to parse Chrome for Testing versions JSON.');
         }
 
-        $bestUrl     = null;
+        $bestUrl = null;
         $bestVersion = null;
 
         foreach ($data['versions'] as $entry) {
             $entryVersion = $entry['version'] ?? '';
-            $entryMajor   = (int) explode('.', $entryVersion)[0];
+            $entryMajor = (int) explode('.', $entryVersion)[0];
 
             if ($entryMajor !== $chromeMajor) {
                 continue;
@@ -474,7 +448,7 @@ class ChromeDriverInstaller
                         return [$download['url'], null];
                     }
 
-                    $bestUrl     = $download['url'];
+                    $bestUrl = $download['url'];
                     $bestVersion = $entryVersion;
                 }
             }
@@ -519,7 +493,7 @@ class ChromeDriverInstaller
      */
     private function windowsChromePaths(): array
     {
-        $paths   = [];
+        $paths = [];
         $envPath = getenv('CHROME_PATH');
 
         if ($envPath !== false && $envPath !== '') {
@@ -539,7 +513,7 @@ class ChromeDriverInstaller
 
         foreach ($prefixes as $prefix) {
             foreach ($suffixes as $suffix) {
-                $paths[] = $prefix . '\\' . $suffix;
+                $paths[] = $prefix.'\\'.$suffix;
             }
         }
 

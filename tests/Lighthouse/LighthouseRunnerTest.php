@@ -7,7 +7,7 @@ namespace Myerscode\Beacon\Tests\Lighthouse;
 use JsonException;
 use Myerscode\Beacon\Lighthouse\LighthouseResult;
 use Myerscode\Beacon\Lighthouse\LighthouseRunner;
-use Myerscode\Beacon\ProcessFactory;
+use Myerscode\Beacon\Driver\ProcessFactory;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
