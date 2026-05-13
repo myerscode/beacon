@@ -25,6 +25,14 @@ class CrawlConfig
 
     private int $requestDelay = 0;
 
+    private JitterStrategy $requestJitter = JitterStrategy::NONE;
+
+    private float $retryBackoff = 2.0;
+
+    private int $retryDelay = 1000;
+
+    private JitterStrategy $retryJitter = JitterStrategy::NONE;
+
     /**
      * @var string[]
      */
@@ -70,6 +78,53 @@ class CrawlConfig
     public function getRequestDelay(): int
     {
         return $this->requestDelay;
+    }
+
+    /**
+     * Calculate the request delay for a single request, applying jitter if configured.
+     * Returns 0 if no request delay is set.
+     */
+    public function calculateRequestDelay(): int
+    {
+        if ($this->requestDelay <= 0) {
+            return 0;
+        }
+
+        return $this->applyJitter($this->requestDelay, $this->requestJitter);
+    }
+
+    /**
+     * Calculate the retry delay for a given attempt, applying exponential backoff and jitter.
+     *
+     * Attempt 1: retryDelay * backoffRate^0
+     * Attempt 2: retryDelay * backoffRate^1
+     * Attempt N: retryDelay * backoffRate^(N-1)
+     */
+    public function calculateRetryDelay(int $attempt): int
+    {
+        $delay = (int) round($this->retryDelay * ($this->retryBackoff ** ($attempt - 1)));
+
+        return $this->applyJitter($delay, $this->retryJitter);
+    }
+
+    public function getRequestJitter(): JitterStrategy
+    {
+        return $this->requestJitter;
+    }
+
+    public function getRetryBackoff(): float
+    {
+        return $this->retryBackoff;
+    }
+
+    public function getRetryDelay(): int
+    {
+        return $this->retryDelay;
+    }
+
+    public function getRetryJitter(): JitterStrategy
+    {
+        return $this->retryJitter;
     }
 
     /**
@@ -161,6 +216,50 @@ class CrawlConfig
     }
 
     /**
+     * Apply jitter to the request delay, randomizing the wait between 0 and the configured delay.
+     * Helps spread out requests to avoid thundering herd problems.
+     */
+    public function requestWithJitter(JitterStrategy $strategy = JitterStrategy::FULL): self
+    {
+        $this->requestJitter = $strategy;
+
+        return $this;
+    }
+
+    /**
+     * Set the base delay in milliseconds between retry attempts (default: 1000ms).
+     * Combined with backoff rate, this determines the wait before each retry.
+     */
+    public function retryDelay(int $milliseconds): self
+    {
+        $this->retryDelay = $milliseconds;
+
+        return $this;
+    }
+
+    /**
+     * Set the backoff multiplier for retry delays (default: 2.0).
+     * Each retry waits retryDelay * backoffRate^(attempt-1) milliseconds.
+     */
+    public function retryBackoff(float $rate): self
+    {
+        $this->retryBackoff = $rate;
+
+        return $this;
+    }
+
+    /**
+     * Apply jitter to retry delays, randomizing the wait between 0 and the calculated backoff interval.
+     * Prevents multiple failed requests from retrying in lockstep.
+     */
+    public function retryWithJitter(JitterStrategy $strategy = JitterStrategy::FULL): self
+    {
+        $this->retryJitter = $strategy;
+
+        return $this;
+    }
+
+    /**
      * Pre-load the crawl queue with known URLs.
      * These will be crawled in addition to any links discovered from the start page.
      *
@@ -207,5 +306,18 @@ class CrawlConfig
         $this->media = $enabled;
 
         return $this;
+    }
+
+    private function applyJitter(int $delay, JitterStrategy $strategy): int
+    {
+        if ($delay <= 0) {
+            return 0;
+        }
+
+        if ($strategy === JitterStrategy::FULL) {
+            return random_int(0, $delay);
+        }
+
+        return $delay;
     }
 }

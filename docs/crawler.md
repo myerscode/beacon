@@ -71,12 +71,67 @@ $config = (new CrawlConfig())->maxRetries(2);
 
 Each retry yields to other Fibers so the crawl continues progressing while waiting.
 
+You can configure exponential backoff for retries:
+
+```php
+$config = (new CrawlConfig())
+    ->maxRetries(3)
+    ->retryDelay(1000)    // 1 second base delay (default: 1000ms)
+    ->retryBackoff(2.0);  // Double the delay each attempt (default: 2.0)
+```
+
+With these settings, retries wait 1s, 2s, then 4s before each attempt.
+
 ### Throttling
 
 Add a delay between requests to avoid overwhelming the target server:
 
 ```php
 $config = (new CrawlConfig())->requestDelay(500); // 500ms between requests
+```
+
+### Jitter
+
+Jitter adds randomness to delays, preventing multiple crawlers or retries from hitting the target in lockstep (the "thundering herd" problem). Inspired by [AWS Step Functions error handling](https://docs.aws.amazon.com/step-functions/latest/dg/concepts-error-handling.html), the `FULL` strategy randomizes the wait between 0 and the calculated interval.
+
+Apply jitter to request delays:
+
+```php
+use Myerscode\Beacon\Crawler\JitterStrategy;
+
+$config = (new CrawlConfig())
+    ->requestDelay(500)
+    ->requestWithJitter();  // Randomize between 0–500ms per request
+```
+
+Apply jitter to retry delays:
+
+```php
+$config = (new CrawlConfig())
+    ->maxRetries(3)
+    ->retryDelay(1000)
+    ->retryBackoff(2.0)
+    ->retryWithJitter();  // Randomize: 0–1s, 0–2s, 0–4s
+```
+
+Combine both for maximum spread:
+
+```php
+$config = (new CrawlConfig())
+    ->maxRetries(3)
+    ->retryDelay(1000)
+    ->retryBackoff(2.0)
+    ->retryWithJitter()
+    ->requestDelay(500)
+    ->requestWithJitter();
+```
+
+You can also explicitly pass the strategy enum:
+
+```php
+$config = (new CrawlConfig())
+    ->requestWithJitter(JitterStrategy::FULL)   // Randomized (default)
+    ->retryWithJitter(JitterStrategy::NONE);    // Deterministic (no jitter)
 ```
 
 ## Live Callbacks
@@ -190,7 +245,11 @@ foreach ($results->broken() as $url => $result) {
 | `maxConcurrent(int $n): self` | Chrome instances in pool (default: 5) |
 | `timeout(int $seconds): self` | Page load timeout (default: 30) |
 | `maxRetries(int $n): self` | Retry failed pages (default: 0) |
+| `retryDelay(int $ms): self` | Base delay between retries in ms (default: 1000) |
+| `retryBackoff(float $rate): self` | Backoff multiplier for retries (default: 2.0) |
+| `retryWithJitter(JitterStrategy): self` | Randomize retry delays (default: NONE) |
 | `requestDelay(int $ms): self` | Delay between requests in ms (default: 0) |
+| `requestWithJitter(JitterStrategy): self` | Randomize request delays (default: NONE) |
 | `exclude(array $patterns): self` | URL patterns to skip |
 | `shouldCrawl(Closure $fn): self` | Custom filter closure |
 | `onCrawled(Closure $fn): self` | Callback after each URL is processed |

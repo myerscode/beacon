@@ -463,8 +463,8 @@ class Spider
         while ($attempts < $maxAttempts) {
             $attempts++;
 
-            // Apply request delay if configured
-            $delay = $this->crawlConfig->getRequestDelay();
+            // Apply request delay with optional jitter
+            $delay = $this->crawlConfig->calculateRequestDelay();
 
             if ($delay > 0) {
                 Fiber::suspend();
@@ -490,7 +490,15 @@ class Spider
                     break;
                 }
 
-                Fiber::suspend();
+                // Apply retry delay with exponential backoff and optional jitter
+                $retryDelay = $this->crawlConfig->calculateRetryDelay($attempts);
+
+                if ($retryDelay > 0) {
+                    Fiber::suspend();
+                    usleep($retryDelay * 1000);
+                } else {
+                    Fiber::suspend();
+                }
             }
         }
 
@@ -512,4 +520,5 @@ class Spider
 
         return $links;
     }
+
 }

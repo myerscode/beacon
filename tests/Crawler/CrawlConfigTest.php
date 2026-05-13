@@ -6,6 +6,7 @@ namespace Myerscode\Beacon\Tests\Crawler;
 
 use Myerscode\Beacon\Crawler\CrawlConfig;
 use Myerscode\Beacon\Crawler\CrawlResult;
+use Myerscode\Beacon\Crawler\JitterStrategy;
 use PHPUnit\Framework\TestCase;
 
 final class CrawlConfigTest extends TestCase
@@ -19,6 +20,10 @@ final class CrawlConfigTest extends TestCase
         $this->assertSame(30, $crawlConfig->getTimeout());
         $this->assertSame(0, $crawlConfig->getMaxRetries());
         $this->assertSame(0, $crawlConfig->getRequestDelay());
+        $this->assertSame(JitterStrategy::NONE, $crawlConfig->getRequestJitter());
+        $this->assertSame(JitterStrategy::NONE, $crawlConfig->getRetryJitter());
+        $this->assertSame(1000, $crawlConfig->getRetryDelay());
+        $this->assertSame(2.0, $crawlConfig->getRetryBackoff());
         $this->assertSame([], $crawlConfig->getExcludePatterns());
     }
 
@@ -143,5 +148,147 @@ final class CrawlConfigTest extends TestCase
         $crawlConfig = new CrawlConfig()->timeout(60);
 
         $this->assertSame(60, $crawlConfig->getTimeout());
+    }
+
+    public function testRequestWithJitterDefaultsToFull(): void
+    {
+        $crawlConfig = (new CrawlConfig())->requestWithJitter();
+
+        $this->assertSame(JitterStrategy::FULL, $crawlConfig->getRequestJitter());
+    }
+
+    public function testRequestWithJitterAcceptsStrategy(): void
+    {
+        $crawlConfig = (new CrawlConfig())->requestWithJitter(JitterStrategy::NONE);
+
+        $this->assertSame(JitterStrategy::NONE, $crawlConfig->getRequestJitter());
+    }
+
+    public function testRetryWithJitterDefaultsToFull(): void
+    {
+        $crawlConfig = (new CrawlConfig())->retryWithJitter();
+
+        $this->assertSame(JitterStrategy::FULL, $crawlConfig->getRetryJitter());
+    }
+
+    public function testRetryWithJitterAcceptsStrategy(): void
+    {
+        $crawlConfig = (new CrawlConfig())->retryWithJitter(JitterStrategy::NONE);
+
+        $this->assertSame(JitterStrategy::NONE, $crawlConfig->getRetryJitter());
+    }
+
+    public function testRetryDelay(): void
+    {
+        $crawlConfig = (new CrawlConfig())->retryDelay(500);
+
+        $this->assertSame(500, $crawlConfig->getRetryDelay());
+    }
+
+    public function testRetryBackoff(): void
+    {
+        $crawlConfig = (new CrawlConfig())->retryBackoff(3.0);
+
+        $this->assertSame(3.0, $crawlConfig->getRetryBackoff());
+    }
+
+    public function testFluentChainingWithJitterOptions(): void
+    {
+        $crawlConfig = (new CrawlConfig())
+            ->maxRetries(3)
+            ->retryDelay(500)
+            ->retryBackoff(1.5)
+            ->retryWithJitter()
+            ->requestDelay(200)
+            ->requestWithJitter();
+
+        $this->assertSame(3, $crawlConfig->getMaxRetries());
+        $this->assertSame(500, $crawlConfig->getRetryDelay());
+        $this->assertSame(1.5, $crawlConfig->getRetryBackoff());
+        $this->assertSame(JitterStrategy::FULL, $crawlConfig->getRetryJitter());
+        $this->assertSame(200, $crawlConfig->getRequestDelay());
+        $this->assertSame(JitterStrategy::FULL, $crawlConfig->getRequestJitter());
+    }
+
+    public function testCalculateRequestDelayReturnsZeroWhenNoDelay(): void
+    {
+        $crawlConfig = new CrawlConfig();
+
+        $this->assertSame(0, $crawlConfig->calculateRequestDelay());
+    }
+
+    public function testCalculateRequestDelayReturnsExactDelayWithNoJitter(): void
+    {
+        $crawlConfig = (new CrawlConfig())->requestDelay(500);
+
+        $this->assertSame(500, $crawlConfig->calculateRequestDelay());
+    }
+
+    public function testCalculateRequestDelayWithJitterStaysWithinBounds(): void
+    {
+        $crawlConfig = (new CrawlConfig())
+            ->requestDelay(1000)
+            ->requestWithJitter();
+
+        for ($i = 0; $i < 100; $i++) {
+            $delay = $crawlConfig->calculateRequestDelay();
+            $this->assertGreaterThanOrEqual(0, $delay);
+            $this->assertLessThanOrEqual(1000, $delay);
+        }
+    }
+
+    public function testCalculateRetryDelayWithExponentialBackoff(): void
+    {
+        $crawlConfig = (new CrawlConfig())
+            ->retryDelay(1000)
+            ->retryBackoff(2.0);
+
+        $this->assertSame(1000, $crawlConfig->calculateRetryDelay(1));
+        $this->assertSame(2000, $crawlConfig->calculateRetryDelay(2));
+        $this->assertSame(4000, $crawlConfig->calculateRetryDelay(3));
+    }
+
+    public function testCalculateRetryDelayWithCustomBackoff(): void
+    {
+        $crawlConfig = (new CrawlConfig())
+            ->retryDelay(500)
+            ->retryBackoff(3.0);
+
+        $this->assertSame(500, $crawlConfig->calculateRetryDelay(1));
+        $this->assertSame(1500, $crawlConfig->calculateRetryDelay(2));
+        $this->assertSame(4500, $crawlConfig->calculateRetryDelay(3));
+    }
+
+    public function testCalculateRetryDelayWithBackoffOfOneIsConstant(): void
+    {
+        $crawlConfig = (new CrawlConfig())
+            ->retryDelay(200)
+            ->retryBackoff(1.0);
+
+        $this->assertSame(200, $crawlConfig->calculateRetryDelay(1));
+        $this->assertSame(200, $crawlConfig->calculateRetryDelay(2));
+        $this->assertSame(200, $crawlConfig->calculateRetryDelay(3));
+    }
+
+    public function testCalculateRetryDelayWithJitterStaysWithinBounds(): void
+    {
+        $crawlConfig = (new CrawlConfig())
+            ->retryDelay(1000)
+            ->retryBackoff(2.0)
+            ->retryWithJitter();
+
+        for ($i = 0; $i < 100; $i++) {
+            $delay = $crawlConfig->calculateRetryDelay(1);
+            $this->assertGreaterThanOrEqual(0, $delay);
+            $this->assertLessThanOrEqual(1000, $delay);
+
+            $delay = $crawlConfig->calculateRetryDelay(2);
+            $this->assertGreaterThanOrEqual(0, $delay);
+            $this->assertLessThanOrEqual(2000, $delay);
+
+            $delay = $crawlConfig->calculateRetryDelay(3);
+            $this->assertGreaterThanOrEqual(0, $delay);
+            $this->assertLessThanOrEqual(4000, $delay);
+        }
     }
 }
