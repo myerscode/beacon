@@ -73,6 +73,33 @@ composer run lighthouse:update
 composer run lighthouse:remove
 ```
 
+### Running in a Consuming Project
+
+When Beacon is installed as a dependency in another project, the `composer run` scripts above are not available because Composer only runs scripts defined in the root `composer.json`. Instead, use the binary commands directly:
+
+```bash
+# ChromeDriver
+vendor/bin/beacon-driver install
+vendor/bin/beacon-driver update
+vendor/bin/beacon-driver clean
+
+# Lighthouse
+vendor/bin/beacon-lighthouse install
+vendor/bin/beacon-lighthouse update
+vendor/bin/beacon-lighthouse remove
+```
+
+To automate ChromeDriver installation in your project, add the following to your `composer.json`:
+
+```json
+{
+    "scripts": {
+        "post-install-cmd": ["@php vendor/bin/beacon-driver install"],
+        "post-update-cmd": ["@php vendor/bin/beacon-driver update"]
+    }
+}
+```
+
 ### Dependency Check
 
 Verify all required dependencies are present on the system:
