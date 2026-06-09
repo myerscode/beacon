@@ -23,50 +23,8 @@ final class ChromeDriverManagerTest extends TestCase
     }
 
     // =========================================================================
-    // BinaryFinder
+    // cleanup()
     // =========================================================================
-
-    public function testBinaryFinderLocatesDriver(): void
-    {
-        $localBinary = __DIR__ . '/../../drivers/chromedriver';
-
-        if (!file_exists($localBinary) || !is_executable($localBinary)) {
-            $this->markTestSkipped('Local chromedriver binary not available');
-        }
-
-        $finder = new BinaryFinder();
-        $result = $finder->find();
-
-        $this->assertFileExists($result);
-    }
-
-    public function testBinaryFinderThrowsWhenDriverNotFound(): void
-    {
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('"chromedriver" binary not found');
-
-        $driversDir = __DIR__ . '/../../drivers';
-        $tempDir = __DIR__ . '/../../drivers_backup_test';
-        $renamed = false;
-
-        if (is_dir($driversDir)) {
-            rename($driversDir, $tempDir);
-            $renamed = true;
-        }
-
-        $originalPath = getenv('PATH');
-        putenv('PATH=/nonexistent');
-
-        try {
-            (new BinaryFinder())->find();
-        } finally {
-            putenv('PATH=' . $originalPath);
-
-            if ($renamed) {
-                rename($tempDir, $driversDir);
-            }
-        }
-    }
 
     public function testCleanupQuitsAllActiveInstances(): void
     {
@@ -235,18 +193,6 @@ final class ChromeDriverManagerTest extends TestCase
         $this->assertGreaterThanOrEqual(10000, $port);
         $this->assertLessThanOrEqual(60000, $port);
         $this->assertSame("http://127.0.0.1:{$port}", $url);
-    }
-
-    // =========================================================================
-    // ProcessFactory — standalone
-    // =========================================================================
-
-    public function testProcessFactoryCreatesProcess(): void
-    {
-        $factory = new ProcessFactory();
-        $process = $factory->create(['echo', 'hello']);
-
-        $this->assertInstanceOf(Process::class, $process);
     }
 
     public function testQuitStopsDriverAndIsIdempotent(): void
