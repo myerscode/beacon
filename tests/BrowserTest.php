@@ -63,6 +63,10 @@ final class BrowserTest extends TestCase
         $this->assertInstanceOf(Browser::class, $browser);
     }
 
+    // =========================================================================
+    // quit()
+    // =========================================================================
+
     public function testQuitCanBeCalledMultipleTimes(): void
     {
         $browser = Browser::create();
@@ -71,27 +75,8 @@ final class BrowserTest extends TestCase
 
         $ref = new ReflectionProperty(Browser::class, 'chromeDriverManager');
         $this->assertNull($ref->getValue($browser));
-    }
-
-    public function testQuitResetsClient(): void
-    {
-        $browser = Browser::create();
-        $browser->quit();
 
         $ref = new ReflectionProperty(Browser::class, 'client');
-        $this->assertNull($ref->getValue($browser));
-    }
-
-    // =========================================================================
-    // quit()
-    // =========================================================================
-
-    public function testQuitResetsDriverManager(): void
-    {
-        $browser = Browser::create();
-        $browser->quit();
-
-        $ref = new ReflectionProperty(Browser::class, 'chromeDriverManager');
         $this->assertNull($ref->getValue($browser));
     }
 

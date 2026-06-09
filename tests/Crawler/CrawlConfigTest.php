@@ -36,34 +36,30 @@ final class CrawlConfigTest extends TestCase
 
     public function testFluentChaining(): void
     {
-        $crawlConfig = new CrawlConfig()
+        $crawlConfig = (new CrawlConfig())
             ->maxDepth(3)
             ->maxConcurrent(2)
+            ->maxRetries(2)
             ->timeout(15)
+            ->requestDelay(200)
+            ->requestWithJitter()
+            ->retryDelay(500)
+            ->retryBackoff(1.5)
+            ->retryWithJitter()
             ->exclude(['/admin'])
             ->shouldCrawl(fn (string $url): true => true)
             ->onCrawled(fn (string $url, \Myerscode\Beacon\Crawler\CrawlResult $crawlResult): null => null);
 
         $this->assertSame(3, $crawlConfig->getMaxDepth());
         $this->assertSame(2, $crawlConfig->getMaxConcurrent());
-        $this->assertSame(15, $crawlConfig->getTimeout());
-        $this->assertSame(['/admin'], $crawlConfig->getExcludePatterns());
-    }
-
-    public function testFluentChainingWithNewOptions(): void
-    {
-        $crawlConfig = (new CrawlConfig())
-            ->maxDepth(3)
-            ->maxConcurrent(2)
-            ->maxRetries(2)
-            ->requestDelay(200)
-            ->timeout(15);
-
-        $this->assertSame(3, $crawlConfig->getMaxDepth());
-        $this->assertSame(2, $crawlConfig->getMaxConcurrent());
         $this->assertSame(2, $crawlConfig->getMaxRetries());
-        $this->assertSame(200, $crawlConfig->getRequestDelay());
         $this->assertSame(15, $crawlConfig->getTimeout());
+        $this->assertSame(200, $crawlConfig->getRequestDelay());
+        $this->assertSame(JitterStrategy::FULL, $crawlConfig->getRequestJitter());
+        $this->assertSame(500, $crawlConfig->getRetryDelay());
+        $this->assertSame(1.5, $crawlConfig->getRetryBackoff());
+        $this->assertSame(JitterStrategy::FULL, $crawlConfig->getRetryJitter());
+        $this->assertSame(['/admin'], $crawlConfig->getExcludePatterns());
     }
 
     public function testIsAllowedBlocksExcludedPatterns(): void
@@ -190,24 +186,6 @@ final class CrawlConfigTest extends TestCase
         $crawlConfig = (new CrawlConfig())->retryBackoff(3.0);
 
         $this->assertSame(3.0, $crawlConfig->getRetryBackoff());
-    }
-
-    public function testFluentChainingWithJitterOptions(): void
-    {
-        $crawlConfig = (new CrawlConfig())
-            ->maxRetries(3)
-            ->retryDelay(500)
-            ->retryBackoff(1.5)
-            ->retryWithJitter()
-            ->requestDelay(200)
-            ->requestWithJitter();
-
-        $this->assertSame(3, $crawlConfig->getMaxRetries());
-        $this->assertSame(500, $crawlConfig->getRetryDelay());
-        $this->assertSame(1.5, $crawlConfig->getRetryBackoff());
-        $this->assertSame(JitterStrategy::FULL, $crawlConfig->getRetryJitter());
-        $this->assertSame(200, $crawlConfig->getRequestDelay());
-        $this->assertSame(JitterStrategy::FULL, $crawlConfig->getRequestJitter());
     }
 
     public function testCalculateRequestDelayReturnsZeroWhenNoDelay(): void

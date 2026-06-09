@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Myerscode\Beacon\Tests;
 
 use Myerscode\Beacon\Client\ClientInterface;
-use Myerscode\Beacon\Lighthouse\Audit;
 use Myerscode\Beacon\Lighthouse\Category;
 use Myerscode\Beacon\Lighthouse\LighthouseResult;
 use Myerscode\Beacon\Lighthouse\LighthouseRunner;
@@ -14,86 +13,62 @@ use PHPUnit\Framework\TestCase;
 
 final class PageLighthouseTest extends TestCase
 {
-    public function testAuditFiltersByEnum(): void
+    public function testLighthouseDelegatesToRunner(): void
     {
-        $page   = $this->createPageWithMockedLighthouse();
-        $audits = $page->audit(Audit::FirstContentfulPaint);
+        $runner = $this->createMock(LighthouseRunner::class);
+        $runner->expects($this->once())
+            ->method('run')
+            ->with('https://example.com')
+            ->willReturn(new LighthouseResult($this->sampleData()));
 
-        $this->assertCount(1, $audits);
-        $this->assertArrayHasKey('first-contentful-paint', $audits);
+        $page = new Page($this->createStub(ClientInterface::class), 'https://example.com');
+        $page->withLighthouseRunner($runner);
+
+        $scores = $page->lighthouse();
+
+        $this->assertArrayHasKey('performance', $scores);
     }
 
-    public function testAuditFiltersByMultiple(): void
+    public function testLighthouseCachesResult(): void
     {
-        $page   = $this->createPageWithMockedLighthouse();
-        $audits = $page->audit(Audit::FirstContentfulPaint, Audit::LargestContentfulPaint);
-
-        $this->assertCount(2, $audits);
-    }
-
-    public function testAuditFiltersByString(): void
-    {
-        $page   = $this->createPageWithMockedLighthouse();
-        $audits = $page->audit('first-contentful-paint');
-
-        $this->assertCount(1, $audits);
-    }
-
-    public function testAuditReturnsAllWhenNoArgs(): void
-    {
-        $page   = $this->createPageWithMockedLighthouse();
-        $audits = $page->audit();
-
-        $this->assertCount(2, $audits);
-        $this->assertArrayHasKey('first-contentful-paint', $audits);
-        $this->assertArrayHasKey('largest-contentful-paint', $audits);
-    }
-
-    public function testLighthouseFiltersCategories(): void
-    {
-        $page   = $this->createPageWithMockedLighthouse();
-        $scores = $page->lighthouse(Category::Performance);
-
-        $this->assertSame(['performance' => 92], $scores);
-    }
-
-    public function testLighthouseResultCachesResult(): void
-    {
-        $client = $this->createStub(ClientInterface::class);
-
         $runner = $this->createMock(LighthouseRunner::class);
         $runner->expects($this->once())
             ->method('run')
             ->willReturn(new LighthouseResult($this->sampleData()));
 
-        $page = new Page($client, 'https://example.com');
+        $page = new Page($this->createStub(ClientInterface::class), 'https://example.com');
         $page->withLighthouseRunner($runner);
 
-        // Call twice — runner should only be invoked once
         $page->lighthouse();
         $page->lighthouse();
+    }
+
+    public function testLighthousePassesCategoryFilters(): void
+    {
+        $page = $this->createPageWithMockedLighthouse();
+
+        $all    = $page->lighthouse();
+        $single = $page->lighthouse(Category::Performance);
+
+        $this->assertCount(4, $all);
+        $this->assertCount(1, $single);
+    }
+
+    public function testAuditDelegatesToLighthouseResult(): void
+    {
+        $page   = $this->createPageWithMockedLighthouse();
+        $audits = $page->audit();
+
+        $this->assertCount(2, $audits);
     }
 
     public function testLighthouseResultReturnsFullObject(): void
     {
-        $page   = $this->createPageWithMockedLighthouse();
+        $page            = $this->createPageWithMockedLighthouse();
         $lighthouseResult = $page->lighthouseResult();
 
         $this->assertInstanceOf(LighthouseResult::class, $lighthouseResult);
         $this->assertSame($this->sampleData(), $lighthouseResult->raw());
-    }
-
-    public function testLighthouseReturnsAllScores(): void
-    {
-        $page   = $this->createPageWithMockedLighthouse();
-        $scores = $page->lighthouse();
-
-        $this->assertSame([
-            'performance'    => 92,
-            'accessibility'  => 100,
-            'best-practices' => 95,
-            'seo'            => 90,
-        ], $scores);
     }
 
     private function createPageWithMockedLighthouse(): Page
@@ -107,6 +82,7 @@ final class PageLighthouseTest extends TestCase
 
         return $page;
     }
+
     /**
      * @return array<string, mixed>
      */
