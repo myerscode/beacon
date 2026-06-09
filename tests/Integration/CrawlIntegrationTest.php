@@ -15,26 +15,26 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('integration')]
 final class CrawlIntegrationTest extends IntegrationTestCase
 {
-    private static ?Browser $browser = null;
+    private ?Browser $browser = null;
 
-    public static function setUpBeforeClass(): void
+    protected function setUp(): void
     {
-        parent::setUpBeforeClass();
-        self::$browser = Browser::create()->waitTimeout(10);
+        parent::setUp();
+        $this->browser = Browser::create()->waitTimeout(10);
     }
 
-    public static function tearDownAfterClass(): void
+    protected function tearDown(): void
     {
-        self::$browser?->quit();
-        self::$browser = null;
-        parent::tearDownAfterClass();
+        $this->browser?->quit();
+        $this->browser = null;
+        parent::tearDown();
     }
 
     public function testCrawlFindsExternalLinks(): void
     {
         $config = (new CrawlConfig())->maxDepth(1)->maxConcurrent(1);
 
-        $page    = self::$browser->visit(self::baseUrl() . '/index.html');
+        $page    = $this->browser->visit(self::baseUrl() . '/index.html');
         $results = $page->crawl($config);
 
         $external = $results->external();
@@ -46,7 +46,7 @@ final class CrawlIntegrationTest extends IntegrationTestCase
     {
         $config = (new CrawlConfig())->maxDepth(2)->maxConcurrent(2);
 
-        $page    = self::$browser->visit(self::baseUrl() . '/index.html');
+        $page    = $this->browser->visit(self::baseUrl() . '/index.html');
         $results = $page->crawl($config);
 
         $internal = $results->internal();
@@ -64,7 +64,7 @@ final class CrawlIntegrationTest extends IntegrationTestCase
                 $crawled[] = $url;
             });
 
-        $page = self::$browser->visit(self::baseUrl() . '/index.html');
+        $page = $this->browser->visit(self::baseUrl() . '/index.html');
         $page->crawl($config);
 
         $this->assertNotEmpty($crawled);
@@ -74,7 +74,7 @@ final class CrawlIntegrationTest extends IntegrationTestCase
     {
         $config = (new CrawlConfig())->maxDepth(0);
 
-        $page    = self::$browser->visit(self::baseUrl() . '/index.html');
+        $page    = $this->browser->visit(self::baseUrl() . '/index.html');
         $results = $page->crawl($config);
 
         // Only the start page
@@ -85,7 +85,7 @@ final class CrawlIntegrationTest extends IntegrationTestCase
     {
         $config = (new CrawlConfig())->maxDepth(1)->maxConcurrent(1);
 
-        $page    = self::$browser->visit(self::baseUrl() . '/index.html');
+        $page    = $this->browser->visit(self::baseUrl() . '/index.html');
         $results = $page->crawl($config);
 
         $array = $results->toArray();
