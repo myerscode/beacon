@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Myerscode\Beacon\Tests;
+namespace Myerscode\Beacon\Tests\Client;
 
 use Myerscode\Beacon\Client\CrawlerAdapter;
 use Myerscode\Beacon\Client\CrawlerInterface;

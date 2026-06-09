@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Myerscode\Beacon\Tests\Lighthouse;
+namespace Myerscode\Beacon\Tests;
 
 use Myerscode\Beacon\Client\ClientInterface;
 use Myerscode\Beacon\Lighthouse\Audit;

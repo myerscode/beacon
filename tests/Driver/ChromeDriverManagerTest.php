@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Myerscode\Beacon\Tests;
+namespace Myerscode\Beacon\Tests\Driver;
 
 use Myerscode\Beacon\Driver\BinaryFinder;
 use Myerscode\Beacon\Driver\ChromeDriverManager;
@@ -28,7 +28,7 @@ final class ChromeDriverManagerTest extends TestCase
 
     public function testBinaryFinderLocatesDriver(): void
     {
-        $localBinary = __DIR__ . '/../drivers/chromedriver';
+        $localBinary = __DIR__ . '/../../drivers/chromedriver';
 
         if (!file_exists($localBinary) || !is_executable($localBinary)) {
             $this->markTestSkipped('Local chromedriver binary not available');
@@ -45,8 +45,8 @@ final class ChromeDriverManagerTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('"chromedriver" binary not found');
 
-        $driversDir = __DIR__ . '/../drivers';
-        $tempDir = __DIR__ . '/../drivers_backup_test';
+        $driversDir = __DIR__ . '/../../drivers';
+        $tempDir = __DIR__ . '/../../drivers_backup_test';
         $renamed = false;
 
         if (is_dir($driversDir)) {
@@ -288,7 +288,7 @@ final class ChromeDriverManagerTest extends TestCase
 
     private function findChromeDriverBinary(): ?string
     {
-        $localBinary = __DIR__ . '/../drivers/chromedriver';
+        $localBinary = __DIR__ . '/../../drivers/chromedriver';
 
         if (file_exists($localBinary) && is_executable($localBinary)) {
             return $localBinary;

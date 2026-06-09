@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Myerscode\Beacon\Tests;
+namespace Myerscode\Beacon\Tests\Driver;
 
 use Myerscode\Beacon\Driver\ChromeDriverInstaller;
 use Myerscode\Beacon\Support\InstallationResult;
