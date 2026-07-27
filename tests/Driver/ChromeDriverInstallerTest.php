@@ -8,38 +8,15 @@ use Myerscode\Beacon\Driver\ChromeDriverInstaller;
 use Myerscode\Beacon\Support\InstallationResult;
 use PHPUnit\Framework\TestCase;
 
-class TestableChomeDriverInstaller extends ChromeDriverInstaller
-{
-    public function callBinaryName(): string
-    {
-        return $this->binaryName();
-    }
-
-    public function callGetBinaryVersion(string $binary): ?string
-    {
-        return $this->getBinaryVersion($binary);
-    }
-
-    public function callPlatform(): string
-    {
-        return $this->platform();
-    }
-
-    public function callResolveDriversDir(?string $dir = null): string
-    {
-        return $this->resolveDriversDir($dir);
-    }
-}
-
 final class ChromeDriverInstallerTest extends TestCase
 {
-    private TestableChomeDriverInstaller $installer;
+    private ChromeDriverInstaller $installer;
 
     private string $tmpDir;
 
     protected function setUp(): void
     {
-        $this->installer = new TestableChomeDriverInstaller();
+        $this->installer = new ChromeDriverInstaller();
         $this->tmpDir    = sys_get_temp_dir() . '/beacon_test_drivers_' . uniqid();
         mkdir($this->tmpDir, 0755, true);
     }
@@ -55,7 +32,7 @@ final class ChromeDriverInstallerTest extends TestCase
     {
         $expected = PHP_OS_FAMILY === 'Windows' ? 'chromedriver.exe' : 'chromedriver';
 
-        $this->assertSame($expected, $this->installer->callBinaryName());
+        $this->assertSame($expected, $this->installer->binaryName());
     }
 
     public function testCleanIsNoopWhenNoBinaryPresent(): void
@@ -91,14 +68,14 @@ final class ChromeDriverInstallerTest extends TestCase
         $binary = $this->tmpDir . DIRECTORY_SEPARATOR . 'fake_chromedriver';
         $this->writeFakeBinary($binary, 'ChromeDriver 120.0.6099.109');
 
-        $this->assertSame('120.0.6099.109', $this->installer->callGetBinaryVersion($binary));
+        $this->assertSame('120.0.6099.109', $this->installer->getBinaryVersion($binary));
     }
 
     // --- getBinaryVersion() ---
 
     public function testGetBinaryVersionReturnsNullForMissingBinary(): void
     {
-        $this->assertNull($this->installer->callGetBinaryVersion('/nonexistent/path/chromedriver'));
+        $this->assertNull($this->installer->getBinaryVersion('/nonexistent/path/chromedriver'));
     }
 
     public function testGetChromeVersionReturnsNullWhenNoChromeFound(): void
@@ -220,7 +197,7 @@ final class ChromeDriverInstallerTest extends TestCase
     public function testPlatformReturnsKnownValue(): void
     {
         $this->assertContains(
-            $this->installer->callPlatform(),
+            $this->installer->platform(),
             ['linux64', 'mac-x64', 'mac-arm64', 'win32', 'win64'],
         );
     }
@@ -232,14 +209,14 @@ final class ChromeDriverInstallerTest extends TestCase
         $newDir = $this->tmpDir . '/subdir_' . uniqid();
         $this->assertDirectoryDoesNotExist($newDir);
 
-        $this->installer->callResolveDriversDir($newDir);
+        $this->installer->resolveDriversDir($newDir);
 
         $this->assertDirectoryExists($newDir);
     }
 
     public function testResolveDriversDirReturnsExistingDir(): void
     {
-        $this->assertSame($this->tmpDir, $this->installer->callResolveDriversDir($this->tmpDir));
+        $this->assertSame($this->tmpDir, $this->installer->resolveDriversDir($this->tmpDir));
     }
 
     public function testUpdateSkipsWhenChromeNotDetected(): void

@@ -103,7 +103,7 @@ class ChromeDriverInstaller
         return $this->install(force: true, driversDir: $driversDir);
     }
 
-    protected function binaryName(): string
+    public function binaryName(): string
     {
         return PHP_OS_FAMILY === 'Windows' ? 'chromedriver.exe' : 'chromedriver';
     }
@@ -156,7 +156,7 @@ class ChromeDriverInstaller
         );
     }
 
-    protected function getBinaryVersion(string $binary): ?string
+    public function getBinaryVersion(string $binary): ?string
     {
         if (! file_exists($binary)) {
             return null;
@@ -186,7 +186,7 @@ class ChromeDriverInstaller
         return null;
     }
 
-    protected function platform(): string
+    public function platform(): string
     {
         $os = PHP_OS_FAMILY;
         $arch = php_uname('m');
@@ -202,7 +202,7 @@ class ChromeDriverInstaller
         return 'linux64';
     }
 
-    protected function resolveDriversDir(?string $dir = null): string
+    public function resolveDriversDir(?string $dir = null): string
     {
         $dir = $dir ?? self::DRIVERS_DIR;
 

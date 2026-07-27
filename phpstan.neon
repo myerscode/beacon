@@ -6,4 +6,4 @@ parameters:
         -
             identifier: new.static
             paths:
-                - src/ChromeDriverInstaller.php
+                - src/Driver/ChromeDriverInstaller.php
