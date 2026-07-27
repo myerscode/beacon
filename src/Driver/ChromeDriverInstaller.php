@@ -23,6 +23,13 @@ class ChromeDriverInstaller
 
     private const CHROMEDRIVER_LATEST_URL = 'https://chromedriver.storage.googleapis.com/LATEST_RELEASE';
 
+    private readonly HttpClientInterface $httpClient;
+
+    public function __construct(?HttpClientInterface $httpClient = null)
+    {
+        $this->httpClient = $httpClient ?? new HttpClient();
+    }
+
     public static function make(): static
     {
         return new static();
@@ -108,7 +115,7 @@ class ChromeDriverInstaller
         return PHP_OS_FAMILY === 'Windows' ? 'chromedriver.exe' : 'chromedriver';
     }
 
-    protected function download(string $driversDir): InstallationResult
+    public function download(string $driversDir): InstallationResult
     {
         $chromeVersion = $this->getChromeVersion();
 
@@ -129,7 +136,7 @@ class ChromeDriverInstaller
             $messages[] = $resolveMessage;
         }
 
-        $zipContent = $this->fetchUrl($downloadUrl);
+        $zipContent = $this->httpClient->fetch($downloadUrl);
         $tmpZip = sys_get_temp_dir().DIRECTORY_SEPARATOR.'chromedriver_'.uniqid().'.zip';
 
         file_put_contents($tmpZip, $zipContent);
@@ -280,29 +287,6 @@ class ChromeDriverInstaller
         $this->removeDirectory($extracted);
     }
 
-    private function fetchUrl(string $url): string
-    {
-        $context = stream_context_create([
-            'http' => [
-                'timeout' => 30,
-                'follow_location' => 1,
-                'user_agent' => 'myerscode/beacon ChromeDriverInstaller',
-            ],
-            'ssl' => [
-                'verify_peer' => true,
-                'verify_peer_name' => true,
-            ],
-        ]);
-
-        $content = @file_get_contents($url, false, $context);
-
-        if ($content === false) {
-            throw new RuntimeException(sprintf('Failed to fetch URL: %s', $url));
-        }
-
-        return $content;
-    }
-
     private function findFileRecursive(string $dir, string $filename): ?string
     {
         if (! is_dir($dir)) {
@@ -398,7 +382,7 @@ class ChromeDriverInstaller
     private function resolveLegacyDownloadUrl(int $chromeMajor, string $platform): string
     {
         $latestUrl = self::CHROMEDRIVER_LATEST_URL.'_'.$chromeMajor;
-        $latestVersion = trim($this->fetchUrl($latestUrl));
+        $latestVersion = trim($this->httpClient->fetch($latestUrl));
 
         $platformMap = [
             'linux64' => 'linux64',
@@ -422,7 +406,7 @@ class ChromeDriverInstaller
      */
     private function resolveModernDownloadUrl(int $chromeMajor, string $chromeVersion, string $platform): array
     {
-        $json = $this->fetchUrl(self::CHROME_FOR_TESTING_VERSIONS_URL);
+        $json = $this->httpClient->fetch(self::CHROME_FOR_TESTING_VERSIONS_URL);
         $data = json_decode($json, true);
 
         if (! is_array($data) || ! isset($data['versions'])) {
