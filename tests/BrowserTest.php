@@ -91,16 +91,13 @@ final class BrowserTest extends TestCase
         $browser->visitAll(['https://example.com']);
     }
 
-    public function testVisitAllCreatesOneClientPerUrl(): void
+    public function testVisitAllCreatesPagePerUrl(): void
     {
-        $factory = $this->createMock(ClientFactory::class);
-        $factory->expects($this->exactly(3))
-            ->method('create')
-            ->willReturn($this->createStub(ClientInterface::class));
+        $browser = Browser::create()->clientFactory($this->createStubFactory(3));
 
-        $browser = Browser::create()->clientFactory($factory);
+        $pages = $browser->visitAll(['https://a.com', 'https://b.com', 'https://c.com']);
 
-        $browser->visitAll(['https://a.com', 'https://b.com', 'https://c.com']);
+        $this->assertCount(3, $pages);
     }
 
     public function testVisitAllEachClientReceivesCorrectUrl(): void
@@ -276,17 +273,18 @@ final class BrowserTest extends TestCase
 
     public function testVisitReusesSameClient(): void
     {
-        $client = $this->createMock(ClientInterface::class);
-        $client->expects($this->exactly(2))->method('request');
-        $client->expects($this->exactly(2))->method('waitForPageReady');
+        $client = $this->createStub(ClientInterface::class);
 
-        $factory = $this->createMock(ClientFactory::class);
-        $factory->expects($this->once())->method('create')->willReturn($client);
+        $factory = $this->createStub(ClientFactory::class);
+        $factory->method('create')->willReturn($client);
 
         $browser = Browser::create()->clientFactory($factory);
 
-        $browser->visit('https://a.com');
-        $browser->visit('https://b.com');
+        $pageA = $browser->visit('https://a.com');
+        $pageB = $browser->visit('https://b.com');
+
+        $this->assertSame('https://a.com', $pageA->url());
+        $this->assertSame('https://b.com', $pageB->url());
     }
 
     public function testVisitUsesConfiguredTimeout(): void

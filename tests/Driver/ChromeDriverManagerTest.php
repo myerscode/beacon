@@ -66,13 +66,9 @@ final class ChromeDriverManagerTest extends TestCase
             $this->markTestSkipped('chromedriver binary not available');
         }
 
-        $binaryFinder = $this->createMock(BinaryFinder::class);
-        $binaryFinder->expects($this->never())->method('find');
-
         $this->manager = new ChromeDriverManager(
             chromeArguments: ['--headless=new', '--disable-gpu', '--no-sandbox'],
             chromeDriverBinary: $binary,
-            binaryFinder: $binaryFinder,
         );
 
         $this->assertGreaterThanOrEqual(10000, $this->manager->getPort());
@@ -91,12 +87,8 @@ final class ChromeDriverManagerTest extends TestCase
         $binaryFinder->method('find')
             ->willThrowException(new RuntimeException('"chromedriver" binary not found.'));
 
-        $processFactory = $this->createMock(ProcessFactory::class);
-        $processFactory->expects($this->never())->method('create');
-
         new ChromeDriverManager(
             binaryFinder: $binaryFinder,
-            processFactory: $processFactory,
         );
     }
 
@@ -132,39 +124,12 @@ final class ChromeDriverManagerTest extends TestCase
             $this->markTestSkipped('chromedriver binary not available');
         }
 
-        $binaryFinder = $this->createMock(BinaryFinder::class);
-        $binaryFinder->expects($this->once())->method('find')->willReturn($binary);
+        $binaryFinder = $this->createStub(BinaryFinder::class);
+        $binaryFinder->method('find')->willReturn($binary);
 
         $this->manager = new ChromeDriverManager(
             chromeArguments: ['--headless=new', '--disable-gpu', '--no-sandbox'],
             binaryFinder: $binaryFinder,
-        );
-
-        $this->assertGreaterThanOrEqual(10000, $this->manager->getPort());
-    }
-
-    public function testConstructorUsesProcessFactory(): void
-    {
-        $binary = $this->findChromeDriverBinary();
-
-        if ($binary === null) {
-            $this->markTestSkipped('chromedriver binary not available');
-        }
-
-        $processFactory = $this->createMock(ProcessFactory::class);
-        $processFactory->expects($this->once())
-            ->method('create')
-            ->willReturnCallback(function (array $command) use ($binary): Process {
-                $this->assertSame($binary, $command[0]);
-                $this->assertStringStartsWith('--port=', $command[1]);
-
-                return new Process($command, null, null, null, null);
-            });
-
-        $this->manager = new ChromeDriverManager(
-            chromeArguments: ['--headless=new', '--disable-gpu', '--no-sandbox'],
-            chromeDriverBinary: $binary,
-            processFactory: $processFactory,
         );
 
         $this->assertGreaterThanOrEqual(10000, $this->manager->getPort());

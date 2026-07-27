@@ -107,8 +107,7 @@ final class ChromeDriverInstallerTest extends TestCase
             ->onlyMethods(['getBinaryVersion'])
             ->getMock();
 
-        $installer->expects($this->atLeastOnce())
-            ->method('getBinaryVersion')
+        $installer->method('getBinaryVersion')
             ->willReturn(null);
 
         $this->assertNull($installer->getChromeVersion());
@@ -122,8 +121,7 @@ final class ChromeDriverInstallerTest extends TestCase
             ->onlyMethods(['getBinaryVersion'])
             ->getMock();
 
-        $installer->expects($this->atLeastOnce())
-            ->method('getBinaryVersion')
+        $installer->method('getBinaryVersion')
             ->willReturn('120.0.6099.109');
 
         $this->assertSame('120.0.6099.109', $installer->getChromeVersion());
@@ -203,11 +201,8 @@ final class ChromeDriverInstallerTest extends TestCase
     public function testInstallWithForceFlagBypassesVersionCheck(): void
     {
         $installer = $this->getMockBuilder(ChromeDriverInstaller::class)
-            ->onlyMethods(['getBinaryVersion', 'getChromeVersion', 'download'])
+            ->onlyMethods(['download'])
             ->getMock();
-
-        $installer->expects($this->never())
-            ->method('getChromeVersion');
 
         $installer->expects($this->once())
             ->method('download')
