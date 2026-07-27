@@ -13,12 +13,26 @@ use Throwable;
 
 class ChromeDriverManager
 {
+    private const MAX_PORT_ATTEMPTS = 20;
+
+    private const PORT_MAX = 60000;
+
+    private const PORT_MIN = 10000;
+
     /**
      * @var self[]
      */
     private static array $instances = [];
 
     private static bool $shutdownRegistered = false;
+
+    /**
+     * Ports already allocated by this process to avoid collisions
+     * between concurrent ChromeDriverManager instances.
+     *
+     * @var int[]
+     */
+    private static array $usedPorts = [];
 
     /**
      * @var Client[]
@@ -42,8 +56,10 @@ class ChromeDriverManager
         ?BinaryFinder $binaryFinder = null,
         ?ProcessFactory $processFactory = null,
         private readonly bool $verbose = false,
+        private readonly int $portMin = self::PORT_MIN,
+        private readonly int $portMax = self::PORT_MAX,
     ) {
-        $this->port = random_int(10000, 60000);
+        $this->port = $this->findAvailablePort();
 
         $binary = $chromeDriverBinary ?? ($binaryFinder ?? new BinaryFinder())->find();
 
@@ -170,6 +186,52 @@ class ChromeDriverManager
             self::$instances,
             fn (self $instance): bool => $instance !== $this,
         );
+    }
+
+    /**
+     * Find a port that is available for binding.
+     *
+     * Generates random ports within the configured range, skips any already
+     * claimed by this process, and verifies availability with a TCP bind test.
+     *
+     * @throws RuntimeException If no available port is found within max attempts.
+     */
+    private function findAvailablePort(): int
+    {
+        for ($attempt = 0; $attempt < self::MAX_PORT_ATTEMPTS; $attempt++) {
+            $port = random_int($this->portMin, $this->portMax);
+
+            if (in_array($port, self::$usedPorts, true)) {
+                continue;
+            }
+
+            if ($this->isPortAvailable($port)) {
+                self::$usedPorts[] = $port;
+
+                return $port;
+            }
+        }
+
+        throw new RuntimeException(
+            sprintf('Could not find an available port after %d attempts (range %d–%d).', self::MAX_PORT_ATTEMPTS, $this->portMin, $this->portMax),
+        );
+    }
+
+    private function isPortAvailable(int $port): bool
+    {
+        $socket = @stream_socket_server(
+            sprintf('tcp://%s:%d', $this->host, $port),
+            $errno,
+            $errstr,
+        );
+
+        if ($socket === false) {
+            return false;
+        }
+
+        fclose($socket);
+
+        return true;
     }
 
     private function killByPid(): void
