@@ -2,7 +2,7 @@
 [![Total Downloads](https://poser.pugx.org/myerscode/beacon/downloads)](https://packagist.org/packages/myerscode/beacon)
 [![PHP Version Require](http://poser.pugx.org/myerscode/beacon/require/php)](https://packagist.org/packages/myerscode/beacon)
 [![License](https://poser.pugx.org/myerscode/beacon/license)](https://github.com/myerscode/beacon/blob/main/LICENSE)
-[![Tests](https://github.com/myerscode/beacon/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/myerscode/beacon/actions/workflows/tests.yml)
+[![Tests](https://github.com/myerscode/beacon/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/myerscode/beacon/actions/workflows/tests.yml)
 [![codecov](https://codecov.io/gh/myerscode/beacon/graph/badge.svg)](https://codecov.io/gh/myerscode/beacon)
 
 # Beacon
