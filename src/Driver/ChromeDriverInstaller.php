@@ -35,6 +35,11 @@ class ChromeDriverInstaller
         return new static();
     }
 
+    public function binaryName(): string
+    {
+        return PHP_OS_FAMILY === 'Windows' ? 'chromedriver.exe' : 'chromedriver';
+    }
+
     public function clean(?string $driversDir = null): InstallationResult
     {
         $driversDir = $this->resolveDriversDir($driversDir);
@@ -47,72 +52,6 @@ class ChromeDriverInstaller
         }
 
         return InstallationResult::nothing(sprintf('ChromeDriver not found in %s, nothing to clean.', $driversDir));
-    }
-
-    public function getChromeVersion(): ?string
-    {
-        $candidates = PHP_OS_FAMILY === 'Windows'
-            ? $this->windowsChromePaths()
-            : $this->unixChromePaths();
-
-        foreach ($candidates as $candidate) {
-            $version = $this->getBinaryVersion($candidate);
-
-            if ($version !== null) {
-                return $version;
-            }
-        }
-
-        $finder = new ExecutableFinder();
-        $names = ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser', 'chrome'];
-
-        foreach ($names as $name) {
-            $found = $finder->find($name);
-
-            if ($found !== null) {
-                $version = $this->getBinaryVersion($found);
-
-                if ($version !== null) {
-                    return $version;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    public function install(bool $force = false, ?string $driversDir = null): InstallationResult
-    {
-        $driversDir = $this->resolveDriversDir($driversDir);
-        $binary = $driversDir.DIRECTORY_SEPARATOR.$this->binaryName();
-
-        if (! $force && file_exists($binary)) {
-            $installedVersion = $this->getBinaryVersion($binary);
-            $chromeVersion = $this->getChromeVersion();
-
-            if ($installedVersion !== null && $chromeVersion !== null) {
-                $installedMajor = (int) explode('.', $installedVersion)[0];
-                $chromeMajor = (int) explode('.', $chromeVersion)[0];
-
-                if ($installedMajor === $chromeMajor) {
-                    return InstallationResult::skipped(
-                        sprintf('ChromeDriver %s already installed and matches Chrome %s. Skipping.', $installedVersion, $chromeVersion),
-                    );
-                }
-            }
-        }
-
-        return $this->download($driversDir);
-    }
-
-    public function update(?string $driversDir = null): InstallationResult
-    {
-        return $this->install(force: true, driversDir: $driversDir);
-    }
-
-    public function binaryName(): string
-    {
-        return PHP_OS_FAMILY === 'Windows' ? 'chromedriver.exe' : 'chromedriver';
     }
 
     public function download(string $driversDir): InstallationResult
@@ -193,6 +132,62 @@ class ChromeDriverInstaller
         return null;
     }
 
+    public function getChromeVersion(): ?string
+    {
+        $candidates = PHP_OS_FAMILY === 'Windows'
+            ? $this->windowsChromePaths()
+            : $this->unixChromePaths();
+
+        foreach ($candidates as $candidate) {
+            $version = $this->getBinaryVersion($candidate);
+
+            if ($version !== null) {
+                return $version;
+            }
+        }
+
+        $finder = new ExecutableFinder();
+        $names = ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser', 'chrome'];
+
+        foreach ($names as $name) {
+            $found = $finder->find($name);
+
+            if ($found !== null) {
+                $version = $this->getBinaryVersion($found);
+
+                if ($version !== null) {
+                    return $version;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    public function install(bool $force = false, ?string $driversDir = null): InstallationResult
+    {
+        $driversDir = $this->resolveDriversDir($driversDir);
+        $binary = $driversDir.DIRECTORY_SEPARATOR.$this->binaryName();
+
+        if (! $force && file_exists($binary)) {
+            $installedVersion = $this->getBinaryVersion($binary);
+            $chromeVersion = $this->getChromeVersion();
+
+            if ($installedVersion !== null && $chromeVersion !== null) {
+                $installedMajor = (int) explode('.', $installedVersion)[0];
+                $chromeMajor = (int) explode('.', $chromeVersion)[0];
+
+                if ($installedMajor === $chromeMajor) {
+                    return InstallationResult::skipped(
+                        sprintf('ChromeDriver %s already installed and matches Chrome %s. Skipping.', $installedVersion, $chromeVersion),
+                    );
+                }
+            }
+        }
+
+        return $this->download($driversDir);
+    }
+
     public function platform(): string
     {
         $os = PHP_OS_FAMILY;
@@ -218,6 +213,11 @@ class ChromeDriverInstaller
         }
 
         return $dir;
+    }
+
+    public function update(?string $driversDir = null): InstallationResult
+    {
+        return $this->install(force: true, driversDir: $driversDir);
     }
 
     private function extractBinary(string $zipPath, string $driversDir): void
