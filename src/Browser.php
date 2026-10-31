@@ -186,7 +186,7 @@ class Browser
 
         $slotCount = min($concurrency, count($urls));
 
-        /** @var array<int, Fiber> $fibers keyed by slot */
+        /** @var array<int, Fiber<null, null, Page, null>> $fibers keyed by slot */
         $fibers = [];
 
         /** @var array<int, int> $fiberIndex maps slot to original URL index */

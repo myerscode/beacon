@@ -9,6 +9,7 @@ use Myerscode\Beacon\Driver\HttpClientInterface;
 use Myerscode\Beacon\Support\InstallationResult;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
+use ZipArchive;
 
 final class ChromeDriverInstallerDownloadTest extends TestCase
 {
@@ -25,20 +26,31 @@ final class ChromeDriverInstallerDownloadTest extends TestCase
         $this->removeDirectory($this->tmpDir);
     }
 
-    // =========================================================================
-    // download() — chrome not detected
-    // =========================================================================
-
-    public function testDownloadSkipsWhenChromeNotDetected(): void
+    public function testDownloadIncludesDetectedVersionInMessages(): void
     {
-        $httpClient = $this->createStub(HttpClientInterface::class);
+        $platform = (new ChromeDriverInstaller())->platform();
+        $binaryName = (new ChromeDriverInstaller())->binaryName();
 
-        $installer = $this->createInstallerWithChromeVersion(null, $httpClient);
+        $versionsJson = $this->buildVersionsJson('120.0.6099.109', $platform);
+        $zipContent = $this->buildZipWithBinary($binaryName);
+
+        $httpClient = $this->createStub(HttpClientInterface::class);
+        $httpClient->method('fetch')->willReturnCallback(
+            function (string $url) use ($versionsJson, $zipContent): string {
+                if (str_contains($url, 'known-good-versions')) {
+                    return $versionsJson;
+                }
+
+                return $zipContent;
+            },
+        );
+
+        $installer = $this->createInstallerWithChromeVersion('120.0.6099.109', $httpClient);
 
         $result = $installer->download($this->tmpDir);
 
-        $this->assertSame(InstallationResult::STATUS_SKIPPED, $result->status);
-        $this->assertStringContainsString('not detected', $result->summary);
+        $this->assertNotEmpty($result->messages);
+        $this->assertStringContainsString('120.0.6099.109', $result->messages[0]);
     }
 
     // =========================================================================
@@ -73,31 +85,20 @@ final class ChromeDriverInstallerDownloadTest extends TestCase
         $this->assertFileExists($this->tmpDir . DIRECTORY_SEPARATOR . $binaryName);
     }
 
-    public function testDownloadIncludesDetectedVersionInMessages(): void
+    // =========================================================================
+    // download() — chrome not detected
+    // =========================================================================
+
+    public function testDownloadSkipsWhenChromeNotDetected(): void
     {
-        $platform = (new ChromeDriverInstaller())->platform();
-        $binaryName = (new ChromeDriverInstaller())->binaryName();
-
-        $versionsJson = $this->buildVersionsJson('120.0.6099.109', $platform);
-        $zipContent = $this->buildZipWithBinary($binaryName);
-
         $httpClient = $this->createStub(HttpClientInterface::class);
-        $httpClient->method('fetch')->willReturnCallback(
-            function (string $url) use ($versionsJson, $zipContent): string {
-                if (str_contains($url, 'known-good-versions')) {
-                    return $versionsJson;
-                }
 
-                return $zipContent;
-            },
-        );
-
-        $installer = $this->createInstallerWithChromeVersion('120.0.6099.109', $httpClient);
+        $installer = $this->createInstallerWithChromeVersion(null, $httpClient);
 
         $result = $installer->download($this->tmpDir);
 
-        $this->assertNotEmpty($result->messages);
-        $this->assertStringContainsString('120.0.6099.109', $result->messages[0]);
+        $this->assertSame(InstallationResult::STATUS_SKIPPED, $result->status);
+        $this->assertStringContainsString('not detected', $result->summary);
     }
 
     // =========================================================================
@@ -147,6 +148,36 @@ final class ChromeDriverInstallerDownloadTest extends TestCase
         $installer->download($this->tmpDir);
     }
 
+    public function testDownloadThrowsWhenNoVersionForPlatform(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('No ChromeDriver download found');
+
+        // Build versions JSON for a different platform than what we're running
+        $wrongPlatform = 'nonexistent-platform';
+        $versionsJson = $this->buildVersionsJson('120.0.6099.109', $wrongPlatform);
+
+        $httpClient = $this->createStub(HttpClientInterface::class);
+        $httpClient->method('fetch')->willReturn($versionsJson);
+
+        $installer = $this->createInstallerWithChromeVersion('120.0.6099.109', $httpClient);
+
+        $installer->download($this->tmpDir);
+    }
+
+    public function testDownloadThrowsWhenVersionsJsonIsInvalid(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Failed to parse');
+
+        $httpClient = $this->createStub(HttpClientInterface::class);
+        $httpClient->method('fetch')->willReturn('{"invalid": true}');
+
+        $installer = $this->createInstallerWithChromeVersion('120.0.6099.109', $httpClient);
+
+        $installer->download($this->tmpDir);
+    }
+
     // =========================================================================
     // download() — version resolution
     // =========================================================================
@@ -179,50 +210,19 @@ final class ChromeDriverInstallerDownloadTest extends TestCase
         $this->assertStringContainsString('closest', $result->messages[2] ?? '');
     }
 
-    public function testDownloadThrowsWhenNoVersionForPlatform(): void
+    private function buildEmptyZip(): string
     {
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('No ChromeDriver download found');
+        $tmpZip = sys_get_temp_dir() . '/beacon_test_zip_' . uniqid() . '.zip';
 
-        // Build versions JSON for a different platform than what we're running
-        $wrongPlatform = 'nonexistent-platform';
-        $versionsJson = $this->buildVersionsJson('120.0.6099.109', $wrongPlatform);
+        $zip = new ZipArchive();
+        $zip->open($tmpZip, ZipArchive::CREATE);
+        $zip->addFromString('readme.txt', 'no binary here');
+        $zip->close();
 
-        $httpClient = $this->createStub(HttpClientInterface::class);
-        $httpClient->method('fetch')->willReturn($versionsJson);
+        $content = file_get_contents($tmpZip);
+        unlink($tmpZip);
 
-        $installer = $this->createInstallerWithChromeVersion('120.0.6099.109', $httpClient);
-
-        $installer->download($this->tmpDir);
-    }
-
-    public function testDownloadThrowsWhenVersionsJsonIsInvalid(): void
-    {
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Failed to parse');
-
-        $httpClient = $this->createStub(HttpClientInterface::class);
-        $httpClient->method('fetch')->willReturn('{"invalid": true}');
-
-        $installer = $this->createInstallerWithChromeVersion('120.0.6099.109', $httpClient);
-
-        $installer->download($this->tmpDir);
-    }
-
-    // =========================================================================
-    // Helpers
-    // =========================================================================
-
-    private function createInstallerWithChromeVersion(?string $version, HttpClientInterface $httpClient): ChromeDriverInstaller
-    {
-        $installer = $this->getMockBuilder(ChromeDriverInstaller::class)
-            ->setConstructorArgs([$httpClient])
-            ->onlyMethods(['getChromeVersion'])
-            ->getMock();
-
-        $installer->method('getChromeVersion')->willReturn($version);
-
-        return $installer;
+        return $content;
     }
 
     private function buildVersionsJson(string $version, string $platform): string
@@ -248,8 +248,8 @@ final class ChromeDriverInstallerDownloadTest extends TestCase
     {
         $tmpZip = sys_get_temp_dir() . '/beacon_test_zip_' . uniqid() . '.zip';
 
-        $zip = new \ZipArchive();
-        $zip->open($tmpZip, \ZipArchive::CREATE);
+        $zip = new ZipArchive();
+        $zip->open($tmpZip, ZipArchive::CREATE);
         $zip->addFromString('chromedriver-linux64/' . $binaryName, "#!/bin/sh\necho 'ChromeDriver 120.0.6099.109'\n");
         $zip->close();
 
@@ -259,19 +259,20 @@ final class ChromeDriverInstallerDownloadTest extends TestCase
         return $content;
     }
 
-    private function buildEmptyZip(): string
+    // =========================================================================
+    // Helpers
+    // =========================================================================
+
+    private function createInstallerWithChromeVersion(?string $version, HttpClientInterface $httpClient): ChromeDriverInstaller
     {
-        $tmpZip = sys_get_temp_dir() . '/beacon_test_zip_' . uniqid() . '.zip';
+        $installer = $this->getMockBuilder(ChromeDriverInstaller::class)
+            ->setConstructorArgs([$httpClient])
+            ->onlyMethods(['getChromeVersion'])
+            ->getMock();
 
-        $zip = new \ZipArchive();
-        $zip->open($tmpZip, \ZipArchive::CREATE);
-        $zip->addFromString('readme.txt', 'no binary here');
-        $zip->close();
+        $installer->method('getChromeVersion')->willReturn($version);
 
-        $content = file_get_contents($tmpZip);
-        unlink($tmpZip);
-
-        return $content;
+        return $installer;
     }
 
     private function removeDirectory(string $dir): void

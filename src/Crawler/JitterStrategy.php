@@ -14,6 +14,6 @@ namespace Myerscode\Beacon\Crawler;
  */
 enum JitterStrategy: string
 {
-    case NONE = 'none';
     case FULL = 'full';
+    case NONE = 'none';
 }

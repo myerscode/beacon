@@ -13,6 +13,27 @@ use PHPUnit\Framework\TestCase;
 
 final class PageLighthouseTest extends TestCase
 {
+    public function testAuditDelegatesToLighthouseResult(): void
+    {
+        $page   = $this->createPageWithMockedLighthouse();
+        $audits = $page->audit();
+
+        $this->assertCount(2, $audits);
+    }
+
+    public function testLighthouseCachesResult(): void
+    {
+        $runner = $this->createMock(LighthouseRunner::class);
+        $runner->expects($this->once())
+            ->method('run')
+            ->willReturn(new LighthouseResult($this->sampleData()));
+
+        $page = new Page($this->createStub(ClientInterface::class), 'https://example.com');
+        $page->withLighthouseRunner($runner);
+
+        $page->lighthouse();
+        $page->lighthouse();
+    }
     public function testLighthouseDelegatesToRunner(): void
     {
         $runner = $this->createMock(LighthouseRunner::class);
@@ -29,20 +50,6 @@ final class PageLighthouseTest extends TestCase
         $this->assertArrayHasKey('performance', $scores);
     }
 
-    public function testLighthouseCachesResult(): void
-    {
-        $runner = $this->createMock(LighthouseRunner::class);
-        $runner->expects($this->once())
-            ->method('run')
-            ->willReturn(new LighthouseResult($this->sampleData()));
-
-        $page = new Page($this->createStub(ClientInterface::class), 'https://example.com');
-        $page->withLighthouseRunner($runner);
-
-        $page->lighthouse();
-        $page->lighthouse();
-    }
-
     public function testLighthousePassesCategoryFilters(): void
     {
         $page = $this->createPageWithMockedLighthouse();
@@ -52,14 +59,6 @@ final class PageLighthouseTest extends TestCase
 
         $this->assertCount(4, $all);
         $this->assertCount(1, $single);
-    }
-
-    public function testAuditDelegatesToLighthouseResult(): void
-    {
-        $page   = $this->createPageWithMockedLighthouse();
-        $audits = $page->audit();
-
-        $this->assertCount(2, $audits);
     }
 
     public function testLighthouseResultReturnsFullObject(): void
